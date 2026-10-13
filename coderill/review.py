@@ -1,0 +1,61 @@
+"""Trusted pre-write review: show the exact change before a file is mutated.
+
+The permission layer decides *whether* a call may run; this builds the evidence a
+human needs to decide well — a unified diff of the proposed change, computed from
+the file's real current bytes. Shell commands are deliberately excluded: their
+file effects cannot be precomputed safely.
+"""
+
+from __future__ import annotations
+
+import difflib
+from pathlib import Path
+from typing import Any
+
+from .tools.base import ToolError, resolve_path
+
+
+def build_prewrite_review(tool_name: str, arguments: dict[str, Any], root: str | Path) -> str:
+    """A unified diff for a file write/edit, or '' when it cannot be precomputed."""
+    try:
+        if tool_name == "write_file":
+            return _for_write(arguments, Path(root))
+        if tool_name == "edit_file":
+            return _for_edit(arguments, Path(root))
+    except (OSError, ValueError, ToolError):
+        return ""
+    return ""
+
+
+def _for_write(arguments: dict[str, Any], root: Path) -> str:
+    target = resolve_path(root, str(arguments.get("path", "")))
+    before = target.read_text(errors="replace") if target.exists() else ""
+    after = str(arguments.get("content", ""))
+    return _diff(before, after, str(arguments.get("path", "")))
+
+
+def _for_edit(arguments: dict[str, Any], root: Path) -> str:
+    target = resolve_path(root, str(arguments.get("file_path", "")))
+    if not target.exists():
+        return ""
+    before = target.read_text(errors="replace")
+    old = str(arguments.get("old_string", ""))
+    new = str(arguments.get("new_string", ""))
+    count = before.count(old)
+    if count == 0 or (count > 1 and not arguments.get("replace_all")):
+        # The edit would not apply cleanly; there is nothing trustworthy to show.
+        return ""
+    after = before.replace(old, new, -1 if arguments.get("replace_all") else 1)
+    return _diff(before, after, str(arguments.get("file_path", "")))
+
+
+def _diff(before: str, after: str, filename: str) -> str:
+    return "\n".join(
+        difflib.unified_diff(
+            before.splitlines(),
+            after.splitlines(),
+            fromfile=f"a/{filename}",
+            tofile=f"b/{filename}",
+            lineterm="",
+        )
+    )
