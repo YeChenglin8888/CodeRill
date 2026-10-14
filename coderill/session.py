@@ -5,6 +5,7 @@ The durable truth for a conversation is a JSONL file, one event per line:
     {"v":1, "seq":1, "ts":"...", "type":"start",      "model":..., "workspace":...}
     {"v":1, "seq":2, "ts":"...", "type":"message",    "message":{...}}
     {"v":1, "seq":3, "ts":"...", "type":"checkpoint", "messages":[...]}
+    {"v":1, "seq":4, "ts":"...", "type":"plan",       "plan":{...}}
 
 The message list the agent works with is a *projection* replayed from those
 events. When context compression shrinks the conversation we append a
@@ -82,6 +83,7 @@ class Session:
         workspace: str,
         *,
         messages: list[dict] | None = None,
+        plan_snapshot: dict | None = None,
         created: str | None = None,
         updated: str | None = None,
         store: SessionStore | None = None,
@@ -91,6 +93,7 @@ class Session:
         self.model = model
         self.workspace = workspace
         self.messages: list[dict] = list(messages or [])
+        self.plan_snapshot = plan_snapshot
         self.created = created or _now()
         self.updated = updated or self.created
         self.store = store or SessionStore()
@@ -116,17 +119,21 @@ class Session:
             raise ValueError(f"unsupported or missing session schema for '{session_id}'")
 
         messages: list[dict] = []
+        plan_snapshot = None
         for event in events:
             if event.get("type") == "checkpoint":
                 messages = list(event.get("messages", []))
             elif event.get("type") == "message":
                 messages.append(event["message"])
+            elif event.get("type") == "plan":
+                plan_snapshot = event["plan"]
 
         return cls(
             session_id,
             start.get("model", ""),
             start.get("workspace", ""),
             messages=messages,
+            plan_snapshot=plan_snapshot,
             created=start.get("ts"),
             updated=events[-1].get("ts"),
             store=store,
@@ -156,6 +163,11 @@ class Session:
         self.messages = list(messages)
         self._append({"type": "checkpoint", "messages": list(messages)})
 
+    def record_plan(self, snapshot: dict) -> None:
+        """Persist the task plan after a successful plan-tool mutation."""
+        self._append({"type": "plan", "plan": snapshot})
+        self.plan_snapshot = snapshot
+
     def save(self) -> Path:
         """Stamp the session as touched. The log is already durable."""
         self._append({"type": "touch"})
@@ -178,6 +190,8 @@ class Session:
         clone = Session.new(self.model, self.workspace, store or self.store)
         for message in self.messages:
             clone.record(message)
+        if self.plan_snapshot is not None:
+            clone.record_plan(self.plan_snapshot)
         return clone
 
     def transcript(self) -> str:

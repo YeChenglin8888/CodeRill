@@ -74,10 +74,12 @@ def _git_bash() -> str | None:
     """Path to Git Bash on Windows, or None on POSIX (where /bin/sh is fine)."""
     if os.name != "nt":
         return None
-    found = shutil.which("bash")
-    if found:
-        return found
     for candidate in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files (x86)\Git\bin\bash.exe"):
-        if Path(candidate).exists():
+        if Path(candidate).is_file():
             return candidate
+    git = shutil.which("git")
+    if git:
+        candidate = Path(git).parent.parent / "bin" / "bash.exe"
+        if candidate.is_file():
+            return str(candidate)
     return None

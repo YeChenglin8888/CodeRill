@@ -47,6 +47,13 @@ def test_stale_revision_is_rejected():
         plan.create(["b"], 0)
 
 
+def test_invalid_create_does_not_partially_change_plan():
+    plan = TaskPlan()
+    with pytest.raises(ValueError):
+        plan.create(["valid", ""], 0, mode="dag")
+    assert plan.snapshot() == {"mode": "linear", "revision": 0, "tasks": []}
+
+
 def test_dag_ready_set_follows_dependencies():
     plan = TaskPlan("dag")
     plan.create(["a", "b"], 0)
@@ -61,6 +68,15 @@ def test_unknown_task_is_rejected():
     plan.create(["a"], 0)
     with pytest.raises(UnknownTask):
         plan.update("t9", plan.revision, status="done")
+
+
+def test_invalid_dependency_does_not_partially_update_task():
+    plan = TaskPlan()
+    plan.create(["a"], 0)
+    before = plan.snapshot()
+    with pytest.raises(UnknownTask):
+        plan.update("t1", plan.revision, status="done", depends_on=["t9"])
+    assert plan.snapshot() == before
 
 
 def test_revise_changes_wording():

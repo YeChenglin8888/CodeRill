@@ -80,19 +80,27 @@ class TaskPlan:
     def snapshot(self) -> dict:
         return {"mode": self.mode, "revision": self.revision, "tasks": [asdict(t) for t in self.tasks]}
 
+    @classmethod
+    def from_snapshot(cls, snapshot: dict) -> TaskPlan:
+        plan = cls(snapshot["mode"])
+        plan.revision = snapshot["revision"]
+        plan.tasks = [Task(**task) for task in snapshot["tasks"]]
+        return plan
+
     # -- writes ------------------------------------------------------------
 
     def create(self, contents: list[str], expected_revision: int, mode: str | None = None) -> str:
         self._require(expected_revision)
-        if mode is not None:
-            if mode not in MODES:
-                raise ValueError(f"mode must be one of {MODES}")
-            self.mode = mode
+        if mode is not None and mode not in MODES:
+            raise ValueError(f"mode must be one of {MODES}")
         if not contents:
             raise ValueError("contents must be a non-empty list")
         for content in contents:
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("each task content must be a non-empty string")
+        if mode is not None:
+            self.mode = mode
+        for content in contents:
             self.tasks.append(Task(id=self._next_id(), content=content.strip()))
         self._touch()
         return self.describe()
@@ -107,15 +115,16 @@ class TaskPlan:
     ) -> str:
         self._require(expected_revision)
         task = self._get(task_id)
+        if status is not None and status not in STATUSES:
+            raise ValueError(f"status must be one of {STATUSES}")
+        if depends_on is not None:
+            for dep in depends_on:
+                self._get(dep)
         if status is not None:
-            if status not in STATUSES:
-                raise ValueError(f"status must be one of {STATUSES}")
             task.status = status
         if owner is not None:
             task.owner = owner
         if depends_on is not None:
-            for dep in depends_on:
-                self._get(dep)
             task.depends_on = list(depends_on)
         self._touch()
         return self.describe()

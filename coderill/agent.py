@@ -76,7 +76,9 @@ class Agent:
         self.hooks = hooks or Hooks([], [])
         self.context = context or ContextManager(config.max_context_tokens)
         self.skills = skills if skills is not None else SkillCatalog(default_roots(config.workspace))
-        self.plan = plan or TaskPlan()
+        self.plan = plan if plan is not None else (
+            TaskPlan.from_snapshot(session.plan_snapshot) if session.plan_snapshot is not None else TaskPlan()
+        )
         self.plan_mode = False
 
         self.on_delta = on_delta or (lambda _text: None)
@@ -230,7 +232,10 @@ class Agent:
         return self.permissions.check(tool, arguments)
 
     def _dispatch(self, name: str, arguments: dict[str, Any]) -> str:
+        plan_revision = self.plan.revision
         result = self.registry.dispatch(name, arguments)
+        if self.plan.revision != plan_revision:
+            self.session.record_plan(self.plan.snapshot())
         self.hooks.run_post(name, arguments, result)
         return result
 

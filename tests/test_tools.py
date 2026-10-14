@@ -1,6 +1,10 @@
 """Tests for the file and shell tools, and the path guard."""
 
-from coderill.tools import build_registry
+import os
+
+import pytest
+
+from coderill.tools import build_registry, shell
 
 
 def test_write_then_read_roundtrip(tmp_path):
@@ -43,6 +47,15 @@ def test_bash_reports_nonzero_exit(tmp_path):
     registry = build_registry(tmp_path)
     out = registry.dispatch("bash", {"command": "exit 3"})
     assert "exit code: 3" in out
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Git Bash selection")
+def test_git_bash_does_not_select_wsl(monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(shell.shutil, "which", lambda name: r"C:\PortableGit\cmd\git.exe" if name == "git" else r"C:\Windows\System32\bash.exe")
+        patch.setattr(shell.Path, "is_file", lambda path: str(path) == r"C:\PortableGit\bin\bash.exe")
+        selected = shell._git_bash()
+    assert selected == r"C:\PortableGit\bin\bash.exe"
 
 
 def test_unknown_tool(tmp_path):

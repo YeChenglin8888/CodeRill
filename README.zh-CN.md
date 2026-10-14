@@ -8,14 +8,13 @@
 
 > **一个小到你可以从头读到尾的编程 Agent。**
 
-把它指向一个项目，说清你要什么，它就会自己读代码、写代码、改代码、跑命令，
-直到把事情做完——每次动你的文件之前都会先征求同意。
+把它指向一个项目，说清你要什么，它就会自己读代码、写代码、改代码、跑命令。
+在标准模式下，修改文件、执行命令或访问网络前会先征求同意。
 
 [English](README.md) · [中文](README.zh-CN.md)
 
 [![python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://www.python.org/)
-[![tests](https://img.shields.io/badge/tests-119%20passing-2ea44f)](#测试)
-[![lint](https://img.shields.io/badge/lint-ruff-261230)](https://docs.astral.sh/ruff/)
+[![CI](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml/badge.svg)](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
 
 ---
@@ -24,7 +23,7 @@
 
 编程 Agent 不稀缺，**能读懂的**编程 Agent 才稀缺。
 
-CodeRill 约 3,500 行 Python，19 个模块，另加 1,300 行测试。你打开 `agent.py`
+CodeRill 有几千行 Python 和针对性的测试。你打开 `agent.py`
 就能跟完一整轮：拼请求、流式收回复、跑工具、继续循环——中间没有五层抽象跳来跳去。
 每个子系统就几个文件，每个文件的名字就是它唯一负责的那件事。
 
@@ -33,7 +32,7 @@ CodeRill 约 3,500 行 Python，19 个模块，另加 1,300 行测试。你打�
 ```console
 you > utils.py 有个 bug —— parse() 遇到空输入会崩
 
-allow write_file? {"path": "utils.py", ...}
+allow edit_file? {"file_path": "utils.py", ...}
 --- a/utils.py
 +++ b/utils.py
 -    return json.loads(text)
@@ -81,8 +80,8 @@ allow write_file? {"path": "utils.py", ...}
 
 ## 几个我会在 code review 上坚持的设计
 
-- **路径出不了工作区。** 每个路径都相对项目根目录解析，越界直接拒绝——校验只写
-  一处，而不是散落在每个工具里。
+- **文件工具的路径出不了工作区。** 路径相对项目根目录解析，越界直接拒绝——校验只写
+  一处，而不是散落在每个工具里。Shell 命令尚未沙箱化。
 - **同意是代码，不是提示词。** 会改东西的调用要走一条策略：分类动作，要么命中
   已保存的授权，要么问你，写文件还会先给你看 diff。"Always" 存的是**受限**授权——
   一个路径、一个命令前缀、一个主机——而不是一个无限期的"都行"。
@@ -164,7 +163,8 @@ REPL 内部：`/help`、`/new`、`/list`、`/resume <id>`、`/where`、`/cost`�
 
 一次对话就是一份位于 `~/.coderill/sessions/<id>.jsonl` 的事件日志。消息列表是
 从这份日志重放出来的投影，所以你可以恢复它、`/fork` 成一条分支，或者打印一份
-脱敏的 `/share` 记录——三者都不会动到耐久历史本身。
+脱敏的 `/share` 记录——三者都不会动到耐久历史本身。任务计划的更新也会入日志，
+恢复和 fork 时会保留计划与版本号。
 
 ## Jev 浏览器任务（可选）
 
@@ -201,9 +201,13 @@ MIT 声明与参考 commit 见
 ## 测试
 
 ```bash
+pip install -e ".[dev]"
 pytest tests/ -q       # 离线：不联网、不需要 API key
 ruff check .
 ```
+
+GitHub Actions 会在 Linux 和 Windows 上运行这些检查。六个真实浏览器集成测试
+只有显式启用时才会运行。
 
 主循环、工具、权限、hooks、技能、任务计划、上下文、review 和会话的测试都用
 fake 实现，所以整套测试不需要网络。浏览器测试跑在假浏览器和假 Jev 响应之上；

@@ -76,11 +76,16 @@ def test_fork_copies_the_conversation_into_a_new_session(tmp_path):
     original = Session.new("m", "/ws", store)
     original.record({"role": "user", "content": "hello"})
     original.record({"role": "assistant", "content": "hi"})
+    original.record_plan({
+        "mode": "linear", "revision": 1,
+        "tasks": [{"id": "t1", "content": "fix bug", "status": "pending", "owner": None, "depends_on": []}],
+    })
 
     clone = original.fork(store)
     assert clone.id != original.id
     assert clone.messages == original.messages
     assert clone.model == original.model
+    assert Session.load(clone.id, store).plan_snapshot == original.plan_snapshot
 
 
 def test_transcript_redacts_secrets_and_skips_tool_noise(tmp_path):

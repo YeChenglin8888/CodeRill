@@ -73,3 +73,30 @@ def test_plan_mode_refuses_mutating_tools(tmp_path, monkeypatch):
     assert not (tmp_path / "a.txt").exists()
     tool_msg = next(m for m in session.messages if m["role"] == "tool")
     assert "plan mode" in tool_msg["content"]
+
+
+def test_task_plan_survives_session_resume(tmp_path, monkeypatch):
+    create_plan = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "plan_1",
+                "type": "function",
+                "function": {"name": "task_create", "arguments": '{"contents": ["fix bug"], "expected_revision": 0}'},
+            }
+        ],
+    }
+    agent, session = _agent(tmp_path, monkeypatch, [create_plan])
+    agent.config.max_turns = 1
+    agent.run("make a plan")
+
+    resumed_session = Session.load(session.id)
+    resumed = Agent(
+        agent.config,
+        resumed_session,
+        build_registry(tmp_path),
+        llm=FakeLLM([]),
+        permissions=Permission(allow_all=True),
+    )
+    assert resumed.plan.snapshot() == agent.plan.snapshot()
