@@ -29,15 +29,14 @@ for this release path.
 ## Each release
 
 1. Update `version` in `pyproject.toml` and `__version__` in
-   `coderill/__init__.py` to the same value. For the first release, both are
-   already `0.1.0`.
+   `coderill/__init__.py` to the same value.
 2. Run `pytest tests/ -q` and `ruff check .`, review the release commit, and
    push it to `main`.
-3. Create and push the matching tag, for example:
+3. Create and push the matching tag, for example, for version `0.1.1`:
 
    ```bash
-   git tag -a v0.1.0 -m "CodeRill 0.1.0"
-   git push origin v0.1.0
+   git tag -a v0.1.1 -m "CodeRill 0.1.1"
+   git push origin v0.1.1
    ```
 
 4. Check the **Publish to PyPI** workflow. Approve its `pypi` environment only
@@ -45,5 +44,3 @@ for this release path.
    match; the workflow fails before upload if they differ.
 5. Confirm the package page at `https://pypi.org/project/coderill/`, then test
    `pipx install coderill` and `coderill --version` in a clean environment.
-   Once verified, replace the GitHub-source install command in the website and
-   READMEs with the PyPI command.
