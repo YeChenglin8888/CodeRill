@@ -12,7 +12,7 @@ Point it at a project, describe what you want, and it reads, writes, edits and r
 code on its own. In standard mode, it asks before running tools that change files,
 run commands, or access the network.
 
-[English](README.md) · [中文](README.zh-CN.md)
+[Project website](https://yechenglin8888.github.io/CodeRill/) · [English](README.md) · [中文](README.zh-CN.md)
 
 [![python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://www.python.org/)
 [![CI](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml/badge.svg)](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml)

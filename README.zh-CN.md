@@ -11,7 +11,7 @@
 把它指向一个项目，说清你要什么，它就会自己读代码、写代码、改代码、跑命令。
 在标准模式下，修改文件、执行命令或访问网络前会先征求同意。
 
-[English](README.md) · [中文](README.zh-CN.md)
+[项目网站](https://yechenglin8888.github.io/CodeRill/) · [English](README.md) · [中文](README.zh-CN.md)
 
 [![python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://www.python.org/)
 [![CI](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml/badge.svg)](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml)
