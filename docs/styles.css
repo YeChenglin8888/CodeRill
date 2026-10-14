@@ -75,24 +75,10 @@ a:focus-visible {
   font-size: 1.1rem;
 }
 .brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   width: 31px;
   height: 31px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: var(--surface);
-  font:
-    700 17px ui-monospace,
-    SFMono-Regular,
-    Consolas,
-    monospace;
-}
-.brand-mark span {
-  font-size: 10px;
-  align-self: flex-start;
-  margin-top: 3px;
+  flex: none;
 }
 .header nav {
   display: flex;
