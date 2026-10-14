@@ -134,6 +134,19 @@ the model answers without asking for a tool, the turn is over.
 
 ## Install
 
+With Python, Git and [pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html) installed:
+
+```bash
+pipx install git+https://github.com/YeChenglin8888/CodeRill.git
+coderill --version
+```
+
+This installs the current GitHub source. A versioned PyPI release is not available yet.
+Set `OPENAI_API_KEY` in your environment or in a `.env` file in the project where
+you run CodeRill before starting an agent session.
+
+For development from a checkout:
+
 ```bash
 git clone https://github.com/YeChenglin8888/CodeRill
 cd CodeRill

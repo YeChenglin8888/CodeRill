@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="CodeRill 是一个可以从头读懂的本地 AI 编程 Agent。了解它的架构、权限设计，并用一条命令安装。"
+    />
+    <meta name="theme-color" content="#f6f5f0" />
+    <title>CodeRill — 读得懂的编程 Agent</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+    <header class="header wrap">
+      <a class="brand" href="#top" aria-label="CodeRill 首页"
+        ><span class="brand-mark" aria-hidden="true">C<span>↗</span></span>
+        CodeRill</a
+      >
+      <nav aria-label="主导航">
+        <a href="#architecture">架构</a>
+        <a href="#install">安装</a>
+        <a href="https://github.com/YeChenglin8888/CodeRill">GitHub ↗</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="status-dot" aria-hidden="true"></span> LOCAL CODING
+            AGENT · OPEN SOURCE
+          </p>
+          <h1>让编程 Agent<br /><em>重新变得可读。</em></h1>
+          <p class="lead">
+            CodeRill 是一个小而完整的本地编程
+            Agent。你可以从一次模型调用开始，沿着工具执行、权限确认和会话日志，读完整条工作链路。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#install"
+              >开始安装 <span aria-hidden="true">↗</span></a
+            >
+            <a
+              class="button secondary"
+              href="https://github.com/YeChenglin8888/CodeRill"
+              >查看源码 <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <p class="hero-note">
+            Python 项目 · 支持 OpenAI 兼容接口 · MIT License
+          </p>
+        </div>
+        <div class="terminal" aria-label="CodeRill 工作流程示意">
+          <div class="terminal-top">
+            <span class="terminal-dots" aria-hidden="true">● ● ●</span
+            ><span>一个可跟读的工作回合</span>
+          </div>
+          <div class="terminal-body">
+            <p><span class="prompt">you ›</span> 修复 parse() 对空输入的错误</p>
+            <p class="terminal-muted">01 读取文件与上下文</p>
+            <p class="terminal-muted">02 模型提出修改</p>
+            <p>
+              <span class="prompt">CodeRill ›</span> 显示 diff，等待你的确认
+            </p>
+            <p class="terminal-diff">
+              + return json.loads(text) if text else {}
+            </p>
+            <p><span class="prompt">you ›</span> 同意</p>
+            <p class="terminal-muted">03 写入文件 · 运行测试 · 记录会话</p>
+            <p class="terminal-done">✓ 返回结果</p>
+          </div>
+          <div class="terminal-foot">示意流程 · 不代表一次真实模型运行</div>
+        </div>
+      </section>
+
+      <section class="rule wrap" aria-label="项目主张">
+        <p>真正值得研究的 Agent，应该能回答三个问题：</p>
+        <strong>它为什么这么做？</strong><strong>它改了什么？</strong
+        ><strong>出错后能否恢复？</strong>
+      </section>
+
+      <section class="section wrap" id="architecture">
+        <div class="section-heading">
+          <p class="eyebrow">INSIDE THE LOOP</p>
+          <h2>从一个循环，读懂整套系统。</h2>
+          <p>
+            功能围绕清晰的边界组织。沿着一次请求往下读，就能看见关键决策在哪里发生。
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <span class="feature-number">01 / EXECUTION</span>
+            <h3>模型 ↔ 工具</h3>
+            <p>
+              流式接收模型回复；需要调用工具时执行并把结果送回模型。只读操作可并行，修改操作保持顺序。
+            </p>
+            <code>agent.py · llm.py · tools/</code>
+          </article>
+          <article class="feature">
+            <span class="feature-number">02 / CONTROL</span>
+            <h3>权限与改动预览</h3>
+            <p>
+              标准模式会在修改文件、执行命令或访问网络前询问。文件改动先展示
+              diff；文件工具会拒绝工作区外的路径。
+            </p>
+            <code>permissions.py · review.py</code>
+          </article>
+          <article class="feature">
+            <span class="feature-number">03 / RECOVERY</span>
+            <h3>可重放的会话</h3>
+            <p>
+              会话写入只追加的事件日志，支持恢复和分叉。任务计划也随日志保存，重新打开时保留进度。
+            </p>
+            <code>session.py · taskplan.py</code>
+          </article>
+        </div>
+        <p class="constraint">
+          当前边界：Shell 命令尚未沙箱化；真实模型调用需要你自己的 API Key。
+        </p>
+      </section>
+
+      <section class="install-section" id="install">
+        <div class="wrap install-grid">
+          <div>
+            <p class="eyebrow">GET STARTED</p>
+            <h2>一条命令，装进终端。</h2>
+            <p>
+              目前从 GitHub 源码安装。需要 Python、Git 和 pipx；配置 OpenAI
+              兼容接口的 API Key 后即可开始使用。
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/YeChenglin8888/CodeRill#configuration"
+              >查看配置说明 ↗</a
+            >
+          </div>
+          <div class="install-steps">
+            <div>
+              <span>01 · 安装</span
+              ><code
+                >pipx install git+https://github.com/<wbr />YeChenglin8888/<wbr />CodeRill.git</code
+              >
+            </div>
+            <div>
+              <span>02 · 配置密钥</span><code>OPENAI_API_KEY=你的密钥</code
+              ><small>在系统环境变量或项目的 .env 文件中设置。</small>
+            </div>
+            <div><span>03 · 启动</span><code>coderill</code></div>
+            <p>
+              安装命令会从 GitHub 获取当前代码；PyPI
+              发布后会提供更短的版本化命令。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing wrap">
+        <p class="eyebrow">READ THE CODE</p>
+        <h2>从 README 开始，<br />沿着调用链往下读。</h2>
+        <p>
+          源码、测试和设计取舍都在仓库里。你可以运行它，也可以把它当作一份可以逐层拆解的
+          Agent 实例。
+        </p>
+        <a
+          class="button primary"
+          href="https://github.com/YeChenglin8888/CodeRill"
+          >打开 GitHub 仓库 <span aria-hidden="true">↗</span></a
+        >
+      </section>
+    </main>
+
+    <footer class="footer wrap">
+      <span>© CodeRill · MIT License</span
+      ><a
+        href="https://github.com/YeChenglin8888/CodeRill/blob/main/README.zh-CN.md"
+        >中文文档 ↗</a
+      >
+    </footer>
+  </body>
+</html>

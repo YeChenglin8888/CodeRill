@@ -126,6 +126,18 @@ allow edit_file? {"file_path": "utils.py", ...}
 
 ## 安装
 
+先安装 Python、Git 和 [pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html)，然后执行：
+
+```bash
+pipx install git+https://github.com/YeChenglin8888/CodeRill.git
+coderill --version
+```
+
+目前从 GitHub 当前源码安装，尚未发布带版本的 PyPI 包。开始 Agent 会话前，
+在环境变量或运行项目的 `.env` 文件中设置 `OPENAI_API_KEY`。
+
+如果要从源码参与开发：
+
 ```bash
 git clone https://github.com/YeChenglin8888/CodeRill
 cd CodeRill
