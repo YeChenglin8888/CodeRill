@@ -1,0 +1,219 @@
+"""Optional Textual view over the same AgentRuntime used by the CLI."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from textual.app import App, ComposeResult
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Button, Footer, Header, Input, RichLog, Select, Static
+
+from ..agent.runtime import TurnResult
+from ..config import Config
+from ..llm import LLM
+from ..providers.types import ChatStreamEvent
+from ..session import Session
+from .state import State
+
+
+class CodeRillApp(App):
+    TITLE = "CodeRill"
+    BINDINGS = (("ctrl+c", "cancel_turn", "Cancel"), ("ctrl+n", "new_session", "New"), ("ctrl+q", "quit", "Quit"))
+    CSS = """
+    #sidebar { width: 32; border-right: solid $accent; padding: 1; }
+    #main { width: 1fr; padding: 1; }
+    #history { height: 1fr; border: round $accent; }
+    #plan { height: 1fr; overflow-y: auto; }
+    #approval { display: none; height: auto; max-height: 12; overflow-y: auto; border: round yellow; }
+    #approval-actions { display: none; height: auto; }
+    #message { height: 3; }
+    """
+
+    def __init__(self, state: State) -> None:
+        super().__init__()
+        self.state = state
+        self.active_task: asyncio.Task | None = None
+        self.review: dict | None = None
+        self.streaming_text = ""
+        self.state.agent.on_event = self._runtime_event
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Horizontal():
+            with Vertical(id="sidebar"):
+                yield Static("Sessions")
+                yield Select([(self.state.session.id, self.state.session.id)], id="sessions", allow_blank=False)
+                yield Static("Models")
+                yield Select([(self.state.config.model, "current")], id="models", allow_blank=False)
+                yield Static("Task plan", classes="heading")
+                yield Static("", id="plan")
+            with Vertical(id="main"):
+                yield RichLog(id="history", wrap=True, highlight=True, markup=True)
+                yield Static("", id="stream")
+                yield Static("", id="approval")
+                with Horizontal(id="approval-actions"):
+                    yield Button("Approve", id="approve", variant="success")
+                    yield Button("Always", id="always")
+                    yield Button("Deny", id="deny", variant="error")
+                yield Input(placeholder="Ask CodeRill, or /attach path", id="message")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._refresh_selectors()
+        self._show_history()
+        self._refresh_plan()
+        if self.state.session.pending_review:
+            self._show_result(TurnResult("waiting", review=self.state.session.pending_review))
+        self.query_one("#message", Input).focus()
+
+    async def on_unmount(self) -> None:
+        await self.state.close_async()
+
+    def _refresh_selectors(self) -> None:
+        sessions = self.query_one("#sessions", Select)
+        sessions.set_options([(item.id, item.id) for item in Session.list_all(self.state.session.store)])
+        sessions.value = self.state.session.id
+        models = self.query_one("#models", Select)
+        options = [(f"{self.state.config.model} (current)", "current")]
+        options.extend((name, name) for name in self.state.config.profiles)
+        models.set_options(options)
+        models.value = "current"
+
+    def _show_history(self) -> None:
+        log = self.query_one("#history", RichLog)
+        log.clear()
+        for message in self.state.session.messages:
+            role = message.get("role", "?")
+            if role in ("user", "assistant") and message.get("content"):
+                log.write(f"[{role}] {message['content']}")
+            elif role == "tool":
+                log.write(f"[tool] {str(message.get('content', ''))[:500]}")
+
+    def _refresh_plan(self) -> None:
+        plan = self.state.agent.plan
+        self.query_one("#plan", Static).update(plan.describe() if plan else "No plan")
+
+    def _runtime_event(self, event: ChatStreamEvent) -> None:
+        log = self.query_one("#history", RichLog)
+        if event.kind == "text_delta":
+            self.streaming_text += event.text
+            self.query_one("#stream", Static).update(f"[assistant] {self.streaming_text}")
+        elif event.kind == "tool_started" and event.tool_call:
+            log.write(f"\n[tool] {event.tool_call.name} {event.tool_call.arguments}")
+        elif event.kind == "tool_result":
+            log.write(f"[result] {event.text[:500]}")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        text = event.value.strip()
+        event.input.value = ""
+        if not text or self.active_task is not None:
+            return
+        if self.review is not None:
+            self.query_one("#history", RichLog).write("[review] Resolve the pending approval before sending a message.")
+            return
+        if text.startswith("/attach "):
+            try:
+                item = self.state.session.attach_file(Path(text[8:].strip()))
+                self.state.pending_attachments.append(item)
+                self.query_one("#history", RichLog).write(f"[attached] {item['name']}")
+            except (OSError, ValueError) as exc:
+                self.query_one("#history", RichLog).write(f"[error] {exc}")
+            return
+        self.query_one("#history", RichLog).write(f"[user] {text}")
+        self.active_task = asyncio.create_task(self._run(text))
+
+    async def _run(self, text: str) -> None:
+        try:
+            if self.state.session.incomplete_calls or self.state.session.last_status == "running":
+                recovered = await self.state.agent.resume_turn()
+                self._show_result(recovered)
+                if recovered.status != "complete":
+                    return
+            result = await self.state.agent.run_turn(text, self.state.pending_attachments)
+            if result.status != "failed":
+                self.state.pending_attachments.clear()
+            self._show_result(result)
+        except asyncio.CancelledError:
+            self.query_one("#history", RichLog).write("[cancelled]")
+            self.query_one("#stream", Static).update("")
+            raise
+        finally:
+            self.active_task = None
+
+    def _show_result(self, result) -> None:
+        log = self.query_one("#history", RichLog)
+        if self.streaming_text:
+            log.write(f"[assistant] {self.streaming_text}")
+            self.streaming_text = ""
+            self.query_one("#stream", Static).update("")
+        if result.status == "waiting":
+            self.review = result.review
+            call = self.review["call"]
+            self.query_one("#approval", Static).update(
+                f"Review {call['name']} {call['arguments']}\n{self.review['diff']}\n{result.error}"
+            )
+            self.query_one("#approval", Static).display = True
+            self.query_one("#approval-actions", Horizontal).display = True
+        else:
+            self.review = None
+            self.query_one("#approval", Static).display = False
+            self.query_one("#approval-actions", Horizontal).display = False
+            if result.status != "complete":
+                log.write(f"\n[{result.status}] {result.error}")
+            self._refresh_plan()
+            self._refresh_selectors()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if self.review is None or self.active_task is not None:
+            return
+        self.active_task = asyncio.create_task(self._resume(event.button.id))
+
+    async def _resume(self, decision: str) -> None:
+        try:
+            result = await self.state.agent.resume_turn(self.review["id"], decision)
+            self._show_result(result)
+        finally:
+            self.active_task = None
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if self.active_task is not None or event.value is Select.BLANK:
+            return
+        if event.select.id == "sessions" and event.value != self.state.session.id:
+            self.state.session = Session.load(str(event.value), self.state.session.store)
+            self.state.rebuild()
+            self.state.agent.on_event = self._runtime_event
+            self._show_history()
+            self._refresh_plan()
+            if self.state.session.pending_review:
+                self._show_result(TurnResult("waiting", review=self.state.session.pending_review))
+        elif event.select.id == "models" and event.value != "current":
+            try:
+                self.state.config = Config.from_env(self.state.config.workspace, overrides={"profile": str(event.value)})
+                self.state.llm = LLM(self.state.config)
+                self.state.session.set_model(self.state.config.model)
+                self.state.rebuild()
+                self.state.agent.on_event = self._runtime_event
+                self._refresh_selectors()
+            except (RuntimeError, ValueError) as exc:
+                self.query_one("#history", RichLog).write(f"[error] {exc}")
+
+    def action_cancel_turn(self) -> None:
+        self.state.agent.cancel_turn()
+        if self.active_task is not None:
+            self.active_task.cancel()
+
+    def action_new_session(self) -> None:
+        if self.active_task is not None:
+            return
+        self.state.session = Session.new(self.state.config.model, str(self.state.config.workspace), self.state.session.store)
+        self.state.rebuild()
+        self.state.agent.on_event = self._runtime_event
+        self._refresh_selectors()
+        self._show_history()
+        self._refresh_plan()
+
+
+def run_tui(state: State) -> int:
+    CodeRillApp(state).run()
+    return 0

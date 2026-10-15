@@ -1,255 +1,83 @@
-```
-  ____            __         ____    _      _      _
- / ___   ___    __| |   ___  |  _ \  (_)    | |    | |
-| |      / _ \  / _  |  / _ \ | |_) |  | |    | |    | |
-| |___  | (_) | | (_| | |  __/ |  _ <  | |    | |    | |
- \____  \___/  \__,_|  \___| |_| \_\  |_|    |_|    |_|
-```
+# CodeRill
 
-> **A coding agent small enough to actually read.**
+CodeRill is a Python coding agent built around recoverable long tasks. It keeps an append-only session log, pauses for file reviews, handles context limits, and resumes after interruptions. The CLI and optional Textual interface use the same async runtime.
 
-Point it at a project, describe what you want, and it reads, writes, edits and runs
-code on its own. In standard mode, it asks before running tools that change files,
-run commands, or access the network.
+[中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Interview walkthrough](docs/CodeRill项目面试完整版.md) · [Evaluation](docs/evaluation.md) · [Implementation status](docs/implementation-status.md)
 
-[Project website](https://yechenglin8888.github.io/CodeRill/) · [English](README.md) · [中文](README.zh-CN.md)
+## Install and run
 
-[![python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://www.python.org/)
-[![CI](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml/badge.svg)](https://github.com/YeChenglin8888/CodeRill/actions/workflows/ci.yml)
-[![license](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
+Python 3.10 or newer is required. For a local checkout:
 
----
-
-## The pitch
-
-Coding agents are not scarce. Coding agents you can *read* are.
-
-CodeRill is a few thousand lines of Python with focused tests. You can open
-`agent.py` and follow a whole turn — build the request, stream
-the reply, run the tools, loop — without crawling through five layers of
-abstraction. Each subsystem is a handful of files, and each file is named after
-the one thing it does.
-
-That is the whole idea. Small is the feature, not the excuse.
-
-```console
-you > there's a bug in utils.py — parse() crashes on empty input
-
-allow edit_file? {"file_path": "utils.py", ...}
---- a/utils.py
-+++ b/utils.py
--    return json.loads(text)
-+    return json.loads(text) if text else {}
-  [y]es / [n]o / [a]lways > y
-
-→ edit_file (file_path="utils.py")
-→ bash (command="python -m pytest tests/test_utils.py")
-
-Fixed. parse() returns {} on empty input now instead of raising.
+```bash
+pip install -e ".[tui,mcp]"
+export OPENAI_API_KEY=...       # or set CODERILL_API_KEY / ANTHROPIC_API_KEY
+coderill                     # interactive CLI
+coderill "fix the test"      # one request
+coderill --message "fix it"  # equivalent one-request form
+coderill --tui               # optional Textual interface
 ```
 
-## How it works
+On Windows, set the key in your shell or a project `.env` file. An OpenAI-compatible endpoint can be selected with `OPENAI_BASE_URL`; native Anthropic Messages uses `--provider anthropic` and `ANTHROPIC_API_KEY`.
 
-The agent is one loop. Each turn it streams a reply from the model; if the reply
-asks for tools, the agent runs them and feeds the results back, then loops. When
-the model answers without asking for a tool, the turn is over.
-
-```
-        user message
-             |
-             v
-   +----------------------+
-   | compress + build the |  <-- context.py, prompt.py, skills.py
-   | request (skills, plan,|
-   | todo, system prompt) |
-   +----------------------+
-             |
-             v
-   +----------------------+
-   |  stream model reply  |  <-- llm.py (streaming + retry + deadlines)
-   +----------------------+
-             |
-      tool calls?
-        /        \
-      yes         no --> done
-       |
-       v
-   +-------------------------------------------------+
-   |  hooks -> consent -> run tools -> post hooks     |  <-- agent.py
-   |  (read-only tools run in parallel)               |
-   +-------------------------------------------------+
-             |
-      append results to the session log, loop
+```bash
+coderill --cwd path/to/project --provider anthropic "explain this module"
+coderill --attach screenshot.png --message "what is wrong here?"
+coderill --list
+coderill --resume SESSION_ID
 ```
 
-## Decisions I'd defend in a code review
+Image attachment requires a model profile with `vision = true`. Text and image attachments are stored under the session so a restart can reconstruct the request. The model, provider, and vision capability are configured by `~/.coderill/config.toml`, a project `.coderill.toml`, environment variables, or CLI options, in that order of precedence.
 
-- **File tools stay in the workspace.** Their paths are resolved against the
-  project root and rejected if they land outside — the check lives in one place,
-  not in each tool. Shell commands are not sandboxed.
-- **Consent is code, not a prompt.** Mutating calls go through a policy that
-  classifies the action and either matches a saved grant or asks you, showing a
-  diff for file writes. "Always" saves a *scoped* grant — a path, a command
-  prefix, a host — never an open-ended yes.
-- **The session log is append-only.** Compression writes a checkpoint and leaves
-  the earlier events in place, so the audit trail survives and a session can be
-  replayed, forked, or shared without touching the durable history.
-- **Tool failures are data, not crashes.** A failed tool returns an error string
-  the model can read and recover from, instead of unwinding the loop.
-- **Read-only tools run in parallel; writes do not.** Concurrency where it is
-  free, ordering where it matters.
+```toml
+provider = "openai"
+model = "gpt-4o-mini"
 
-## What's in the box
+[models.claude]
+provider = "anthropic"
+model = "claude-sonnet-4-5"
+api_key_env = "ANTHROPIC_API_KEY"
+vision = true
+```
 
-| File | Responsibility |
+Select a profile in the REPL with `/model claude` or in the TUI model selector. Existing commands include `/new`, `/list`, `/resume`, `/fork`, `/share`, `/where`, `/cost`, `/plan`, `/approve`, `/mode`, `/undo`, `/reasoning`, `/mcp`, and `/exit`. New commands are `/attach`, `/model`, `/background`, and `/apply`.
+
+## Runtime structure
+
+| Package | Responsibility |
 | --- | --- |
-| `coderill/agent.py` | The loop: turns, parallel tools, hooks, consent, sub-agents, plan reconciliation. |
-| `coderill/llm.py` | Model client: streaming, tool-call reassembly, retry, deadlines, usage. |
-| `coderill/tools/` | The tools and the registry that dispatches them. |
-| `coderill/permissions.py` | Consent: classification, modes, scoped persistent grants. |
-| `coderill/review.py` | The trusted pre-write diff shown before a file changes. |
-| `coderill/hooks.py` | User shell hooks around tool calls. |
-| `coderill/skills.py` | File-based skills discovered and loaded on demand. |
-| `coderill/taskplan.py` | The task plan, with revision-based concurrency. |
-| `coderill/context.py` | Three-layer context compression. |
-| `coderill/session.py` | Append-only JSONL event log, replay, fork and share. |
-| `coderill/checkpoints.py` | Undo for the file-writing tools. |
-| `coderill/mcp.py` | A distilled MCP stdio client. |
-| `coderill/browser.py` | The optional Jev browser-task loop. |
-| `coderill/cli.py` | The terminal interface. |
-| `coderill/config.py` | Environment and settings. |
+| `coderill/app/` | CLI/TUI commands, session selection, dependency assembly |
+| `coderill/agent/runtime.py` | Async turn loop, tool settlement, pause/resume/cancel |
+| `coderill/providers/` | Provider-neutral contract and OpenAI/Anthropic adapters |
+| `coderill/session/` | Versioned JSONL events, replay, locking, attachments |
+| `coderill/context/` | Request budgeting, trimming, archival, summaries |
+| `coderill/permissions/` | Scoped grants and durable pre-write reviews |
+| `coderill/runtime/` | Process cancellation and background task state |
+| `coderill/tools/`, `coderill/mcp.py` | Built-in and MCP tools |
 
-## The tools
+A pending review records its ID, tool arguments, diff, target path, and file digest. If the file changes before approval, CodeRill creates a new review. Tool calls started before a crash are recorded as result-unknown and are not automatically replayed. Old v1 sessions remain readable; new events use v2. The legacy synchronous Python `Agent` still exists for existing direct callers; the CLI/TUI use `AgentRuntime`.
 
-- **read_file** / **write_file** / **edit_file** — read with line numbers, write,
-  and replace an exact unique string (returning a unified diff).
-- **bash** — run a shell command from the workspace root (Git Bash on Windows).
-- **glob** / **grep** — find files by pattern, search contents by regex.
-- **todo_write** — the agent's lightweight checklist.
-- **task_list** / **task_create** / **task_update** / **task_revise** — a real task
-  plan with stable IDs and revisions.
-- **load_skill** — pull a skill's instructions into the conversation.
-- **agent** — delegate a self-contained sub-task to a fresh sub-agent.
-- **browser_task** — hand a whole web task to the Jev model (optional).
+Read-only tool calls in a consecutive batch run concurrently. Writes stay in order. Background child agents use independent sessions and budgets. A writable child runs in a Git worktree; `/apply CHILD_ID` previews and explicitly applies its diff. A worktree isolates the working directory, not the operating system.
 
-## Install
+See [architecture.md](docs/architecture.md) for the request sequence, approval state diagram, recovery details, and links from capabilities to tests.
 
-With Python and [pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html) installed:
+## Tools and integrations
+
+Built-in tools read, write, and edit workspace files; search by filename and content; run shell commands; manage a task plan; load skills on demand; retrieve archived output; and delegate bounded tasks. File paths are constrained to the workspace. Shell commands require review in standard mode and have timeout, cancellation, and output limits.
+
+Optional MCP uses the official Python SDK for stdio and Streamable HTTP servers. Server configuration is read from `~/.coderill/mcp.json`. The optional Jev browser tool needs an OpenAI-compatible model, `pip install -e ".[browser]"`, `CODERILL_BROWSER_ENABLED=1`, and `TYPESAFE_*` settings. Its DOM reader is adapted from `browser-use/jev-ultrafast`; see [the retained license notice](coderill/browser_NOTICE.txt).
+
+## Offline verification
 
 ```bash
-pipx install coderill
-coderill --version
-```
-
-Set `OPENAI_API_KEY` in your environment or in a `.env` file in the project where
-you run CodeRill before starting an agent session.
-
-For development from a checkout:
-
-```bash
-git clone https://github.com/YeChenglin8888/CodeRill
-cd CodeRill
-pip install -e .
-cp .env.example .env      # then set OPENAI_API_KEY
-```
-
-Any OpenAI-compatible endpoint works — set `OPENAI_BASE_URL` for DeepSeek,
-Moonshot, a local vLLM server, or whatever you use.
-
-## Use
-
-```bash
-coderill                               # interactive session
-coderill "add type hints to llm.py"    # one-shot
-coderill --cwd ~/myproject             # run against another directory
-coderill --plan                        # start in plan mode (read-only)
-coderill --auto-approve                # no consent prompts
-coderill --list                        # list saved sessions
-coderill --resume 20260101-1200        # resume one
-```
-
-Inside the REPL: `/help`, `/new`, `/list`, `/resume <id>`, `/where`, `/cost`,
-`/undo`, `/share`, `/fork`, `/plan`, `/approve`, `/mode`, `/reasoning`, `/mcp`,
-`/exit`.
-
-## Skills
-
-Drop a `SKILL.md` (or a `<name>.md`) into `<project>/.agents/skills/`,
-`<project>/skills/`, `~/.agents/skills/` or `~/.coderill/skills/`. The model sees
-only each skill's name and one-line description; the body enters the conversation
-only when it calls `load_skill`. Project skills override global ones of the same
-name.
-
-## Sessions
-
-A conversation is a JSONL event log under `~/.coderill/sessions/<id>.jsonl`. The
-message list is a projection replayed from that log, so you can resume it, `/fork`
-it into a branch, or print a redacted `/share` transcript — none of which touch
-the durable history. Task-plan updates are also logged, so resume and fork keep
-the plan and its revision.
-
-## The Jev browser task (optional)
-
-`browser_task` delegates a whole web task to TypeSafe's Jev model, a sub-second
-"System 1" decision model that returns typed choices instead of text. CodeRill
-drives a real browser with Playwright, asks Jev for the next operation, and
-returns JSON page evidence plus a stop reason; `model_done` is Jev's claim, not
-independent verification.
-
-Its DOM reader (`browser_snapshot.js`) is adapted from `browser-use/jev-ultrafast`;
-see [`coderill/browser_NOTICE.txt`](coderill/browser_NOTICE.txt) for the MIT notice
-and reference commit. Install with `pip install -e ".[browser]"`, then set
-`CODERILL_BROWSER_ENABLED=1` and the `TYPESAFE_*` variables.
-
-## Configuration
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | — | Required. |
-| `OPENAI_BASE_URL` | OpenAI | Any compatible endpoint. |
-| `CODERILL_MODEL` | `gpt-4o-mini` | Model name. |
-| `CODERILL_MAX_TOKENS` | `4096` | Per-response cap. |
-| `CODERILL_TEMPERATURE` | `0` | Sampling temperature. |
-| `CODERILL_MAX_TURNS` | `30` | Tool rounds per user turn. |
-| `CODERILL_MAX_CONTEXT` | `128000` | Context budget before compression. |
-| `CODERILL_BROWSER_ENABLED` | `0` | Register the browser tool. |
-| `CODERILL_BROWSER_CHANNEL` | `msedge` | `msedge` or `chrome`. |
-| `TYPESAFE_API_KEY` | — | Key for the Jev browser model. |
-| `TYPESAFE_MODEL` | `jev-latest` | Jev model name. |
-
-State lives in `~/.coderill/`: `hooks.json`, `mcp.json`, `permissions.json`,
-`skills/`, `sessions/`.
-
-## Tests
-
-```bash
-pip install -e ".[dev]"
-pytest tests/ -q       # offline: no network, no API key
+pip install -e ".[dev,tui,mcp]"
+pytest tests/ -q
 ruff check .
+python examples/failure_demo.py
+python -m pip wheel . --no-deps --wheel-dir dist
 ```
 
-GitHub Actions runs these checks on Linux and Windows. The six real-browser
-integration tests are skipped unless explicitly enabled.
-
-The loop, tools, permissions, hooks, skills, task-plan, context, review and
-session tests use fakes, so the suite runs without a network. Browser tests run
-against a fake browser and fake Jev responses; the real-browser checks are opt-in
-via `CODERILL_BROWSER_TEST=1`.
-
-## What's next
-
-- A provider layer with a first-class Anthropic adapter (today: any
-  OpenAI-compatible endpoint via `OPENAI_BASE_URL`).
-- Sandboxed command execution and multimodal attachments.
-- A Textual TUI as a client of the same runtime.
-
-## Acknowledgements
-
-The Jev browser module adapts DOM-reading code from
-[`browser-use/jev-ultrafast`](https://github.com/browser-use/jev-ultrafast) (MIT) —
-the notice ships with the JS, in
-[`coderill/browser_NOTICE.txt`](coderill/browser_NOTICE.txt).
+CI runs tests, Ruff, CLI import/help, and wheel building on Linux and Windows. Core scenarios use fakes and need no API key. Real model, browser, and MCP server checks require explicit integration runs; the browser integration tests are opt-in.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. The Jev browser reader's third-party attribution remains in `coderill/browser_NOTICE.txt`.

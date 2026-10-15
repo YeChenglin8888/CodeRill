@@ -38,6 +38,7 @@ class Skill:
     name: str
     description: str
     path: Path
+    content: str
 
 
 class SkillCatalog:
@@ -47,12 +48,22 @@ class SkillCatalog:
         self.roots = [Path(root) for root in (roots or [])]
         self.skills: list[Skill] = self._discover()
 
+    @classmethod
+    def from_snapshot(cls, entries: list[dict], session) -> SkillCatalog:
+        catalog = cls([])
+        catalog.skills = [Skill(entry["name"], entry["description"], Path(entry["path"]),
+                                session.store.read_blob(session.id, entry["digest"]).decode("utf-8"))
+                          for entry in entries]
+        return catalog
+
     def _discover(self) -> list[Skill]:
         found: dict[str, Skill] = {}
         for root in self.roots:
             if not root.is_dir():
                 continue
             for skill_file in _skill_files(root):
+                if not skill_file.resolve().is_relative_to(root.resolve()):
+                    continue
                 skill = _parse(skill_file)
                 if skill and skill.name not in found:
                     found[skill.name] = skill
@@ -75,7 +86,7 @@ class SkillCatalog:
         """The full text of a skill, by exact name."""
         for skill in self.skills:
             if skill.name == name:
-                return skill.path.read_text(encoding="utf-8", errors="replace")
+                return skill.content
         raise KeyError(name)
 
     def __bool__(self) -> bool:
@@ -101,7 +112,7 @@ def _parse(path: Path) -> Skill | None:
         name = path.parent.name if path.name == "SKILL.md" else path.stem
     if not description:
         description = _first_line(text)
-    return Skill(name=name, description=description[:MAX_DESCRIPTION_CHARS], path=path)
+    return Skill(name=name, description=description[:MAX_DESCRIPTION_CHARS], path=path, content=text)
 
 
 def _frontmatter(text: str) -> tuple[str | None, str | None]:

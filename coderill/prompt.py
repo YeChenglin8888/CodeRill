@@ -14,9 +14,11 @@ task, present the plan as a numbered list and stop. Do not execute any of it
 until the user approves."""
 
 
-def system_prompt(registry: Registry) -> str:
+def system_prompt(registry: Registry, visible_tools: list | None = None) -> str:
     """Build the system prompt, listing whatever tools are actually registered."""
-    tools = "\n".join(f"- {tool.name}: {tool.description}" for tool in registry.tools())
+    tools = "\n".join(f"- {tool.name}: {tool.description}" for tool in (
+        registry.tools() if visible_tools is None else visible_tools
+    ))
     return f"""\
 You are CodeRill, a coding agent that works inside the user's terminal.
 

@@ -20,14 +20,19 @@ classifiers = [
 ]
 dependencies = [
     "openai>=1.0",
+    "anthropic>=0.50",
     "rich>=13.0",
     "prompt_toolkit>=3.0",
     "python-dotenv>=1.0",
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
 # Only needed for the optional `browser_task` tool (see README).
 browser = ["playwright>=1.40", "httpx>=0.27"]
+tui = ["textual>=0.70"]
+mcp = ["mcp>=1.0,<2"]
+all = ["textual>=0.70", "mcp>=1.0,<2", "playwright>=1.40", "httpx>=0.27"]
 dev = ["pytest>=7.0", "ruff>=0.9.0"]
 
 [project.scripts]

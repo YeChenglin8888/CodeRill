@@ -14,30 +14,28 @@ model always sees the current plan.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from .config import Config
-from .context import ContextManager
-from .hooks import Hooks
-from .llm import LLM
-from .permissions import Permission
-from .prompt import PLAN_MODE_PROMPT, system_prompt
-from .session import Session
-from .skills import SkillCatalog, default_roots
-from .taskplan import TaskPlan
-from .tools import Registry, build_registry
-from .tools.agent import AgentTool
-from .tools.skills import LoadSkillTool
-from .tools.taskplan import task_plan_tools
+from ..config import Config
+from ..context import ContextManager
+from ..hooks import Hooks
+from ..llm import LLM
+from ..permissions import Permission
+from ..prompt import PLAN_MODE_PROMPT, system_prompt
+from ..providers.base import ChatProvider
+from ..session import Session
+from ..skills import SkillCatalog, default_roots
+from ..taskplan import TaskPlan
+from ..tools import Registry, build_registry
+from ..tools.agent import AgentTool
+from ..tools.skills import LoadSkillTool
+from ..tools.taskplan import task_plan_tools
+from .execution import ToolExecutor
 
 DeltaCallback = Callable[[str], None]
 ToolCallback = Callable[[str, dict[str, Any]], None]
 ResultCallback = Callable[[str, str], None]
-
-MAX_PARALLEL = 4
 
 # Sent at most once per turn when the model tries to stop with an unfinished plan.
 PLAN_RECONCILE = (
@@ -54,7 +52,7 @@ class Agent:
         config: Config,
         session: Session,
         registry: Registry,
-        llm: LLM | None = None,
+        llm: ChatProvider | None = None,
         *,
         permissions: Permission | None = None,
         hooks: Hooks | None = None,
@@ -72,7 +70,7 @@ class Agent:
         self.registry = registry
         self.llm = llm or LLM(config)
         # Default: nothing to grant consent, so mutating tools are refused.
-        self.permissions = permissions or Permission()
+        self.permissions = permissions or Permission(workspace=str(config.workspace.resolve()))
         self.hooks = hooks or Hooks([], [])
         self.context = context or ContextManager(config.max_context_tokens)
         self.skills = skills if skills is not None else SkillCatalog(default_roots(config.workspace))
@@ -93,6 +91,15 @@ class Agent:
             self.registry.register(LoadSkillTool(self.skills))
         for tool in task_plan_tools(self.plan):
             self.registry.register(tool)
+        self.executor = ToolExecutor(
+            registry=self.registry,
+            permissions=self.permissions,
+            hooks=self.hooks,
+            session=self.session,
+            plan=self.plan,
+            on_tool=self.on_tool,
+            on_tool_result=self.on_tool_result,
+        )
 
     # -- public ------------------------------------------------------------
 
@@ -114,7 +121,7 @@ class Agent:
 
             tool_calls = assistant.get("tool_calls")
             if tool_calls:
-                self._run_tool_calls(tool_calls)
+                self.executor.run(tool_calls, plan_mode=self.plan_mode)
                 self.session.save()
                 continue
 
@@ -182,67 +189,6 @@ class Agent:
         rendered = getattr(tool, "render", lambda: "")()
         return f"# Current task list\n{rendered}" if rendered and rendered != "(no tasks)" else ""
 
-    # -- tool execution ----------------------------------------------------
-
-    def _run_tool_calls(self, tool_calls: list[dict[str, Any]]) -> None:
-        results: list[str | None] = [None] * len(tool_calls)
-        pending: list[tuple[int, str, dict[str, Any]]] = []
-
-        # Phase 1: hooks and consent, sequentially, since they may prompt.
-        for index, call in enumerate(tool_calls):
-            name, arguments = _unpack(call)
-            self.on_tool(name, arguments)
-            refusal = self._veto(name, arguments)
-            if refusal is not None:
-                results[index] = refusal
-            else:
-                pending.append((index, name, arguments))
-
-        # Phase 2: run approved calls -- read-only ones in parallel, the rest serially.
-        parallel = [item for item in pending if self._is_read_only(item[1])]
-        serial = [item for item in pending if not self._is_read_only(item[1])]
-        if parallel:
-            with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL, len(parallel))) as pool:
-                futures = {pool.submit(self._dispatch, name, arguments): index for index, name, arguments in parallel}
-                for future, index in futures.items():
-                    results[index] = future.result()
-        for index, name, arguments in serial:
-            results[index] = self._dispatch(name, arguments)
-
-        # Phase 3: append one tool result per call, in order.
-        for index, call in enumerate(tool_calls):
-            name, _ = _unpack(call)
-            content = results[index] or ""
-            self.on_tool_result(name, content)
-            self.session.record({"role": "tool", "tool_call_id": call.get("id", ""), "content": content})
-
-    def _veto(self, name: str, arguments: dict[str, Any]) -> str | None:
-        """Return a refusal string if this call must not run, else None."""
-        tool = self.registry.get(name)
-        if tool is None:
-            return None  # let the dispatcher report the unknown tool
-
-        if self.plan_mode and not tool.read_only:
-            return "refused: plan mode is on; only read-only tools may run"
-
-        reason = self.hooks.run_pre(name, arguments)
-        if reason is not None:
-            return f"refused by pre hook: {reason}"
-
-        return self.permissions.check(tool, arguments)
-
-    def _dispatch(self, name: str, arguments: dict[str, Any]) -> str:
-        plan_revision = self.plan.revision
-        result = self.registry.dispatch(name, arguments)
-        if self.plan.revision != plan_revision:
-            self.session.record_plan(self.plan.snapshot())
-        self.hooks.run_post(name, arguments, result)
-        return result
-
-    def _is_read_only(self, name: str) -> bool:
-        tool = self.registry.get(name)
-        return bool(tool and tool.read_only)
-
     # -- sub-agents --------------------------------------------------------
 
     def _spawn_subagent(self, task: str) -> str:
@@ -260,17 +206,3 @@ class Agent:
         )
         return child.run(task)
 
-
-def _unpack(call: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    function = call.get("function", {})
-    return function.get("name", ""), _parse_arguments(function.get("arguments", ""))
-
-
-def _parse_arguments(raw: str) -> dict[str, Any]:
-    if not raw:
-        return {}
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return parsed if isinstance(parsed, dict) else {}

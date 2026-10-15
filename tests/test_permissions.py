@@ -48,9 +48,9 @@ def test_classify_maps_tools_to_requests():
     assert classify("read_file", {}) is None
 
 
-def test_default_scope_narrows_shell_to_a_command_prefix():
+def test_default_scope_narrows_shell_to_the_exact_command():
     grant = default_scope(classify("bash", {"command": "git status --short"}))
-    assert grant.pattern == "git *"
+    assert grant.pattern == "git status --short"
 
 
 def test_always_creates_a_path_scoped_grant(tmp_path):
@@ -81,7 +81,8 @@ def test_saved_grants_reload_from_disk(tmp_path):
     first.add(default_scope(classify("bash", {"command": "pytest -q"})))
 
     second = GrantStore(path)
-    assert second.match(classify("bash", {"command": "pytest tests/"})) is not None
+    assert second.match(classify("bash", {"command": "pytest -q"})) is not None
+    assert second.match(classify("bash", {"command": "pytest tests/"})) is None
     assert second.match(classify("bash", {"command": "rm -rf /"})) is None
 
 

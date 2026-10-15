@@ -28,8 +28,7 @@ def build_registry(
 ) -> Registry:
     """Create a registry with the built-in tools plus any extras.
 
-    The browser tool is added only when a model and config are supplied, since
-    it needs both to run.
+    The optional browser tool needs an enabled OpenAI-compatible model client.
     """
     root = Path(workspace)
     registry = Registry(root)
@@ -41,7 +40,7 @@ def build_registry(
     registry.register(GrepTool(root))
     registry.register(TodoWriteTool())
 
-    if llm is not None and config is not None:
+    if llm is not None and config is not None and config.browser_enabled and config.provider == "openai":
         from .browser import BrowserTaskTool
 
         registry.register(BrowserTaskTool(llm, config))

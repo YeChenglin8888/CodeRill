@@ -120,6 +120,23 @@ class TaskPlan:
         if depends_on is not None:
             for dep in depends_on:
                 self._get(dep)
+            graph = {item.id: (depends_on if item.id == task_id else item.depends_on) for item in self.tasks}
+            visiting: set[str] = set()
+            visited: set[str] = set()
+
+            def visit(node: str) -> None:
+                if node in visiting:
+                    raise ValueError("task dependencies contain a cycle")
+                if node in visited:
+                    return
+                visiting.add(node)
+                for parent in graph[node]:
+                    visit(parent)
+                visiting.remove(node)
+                visited.add(node)
+
+            for node in graph:
+                visit(node)
         if status is not None:
             task.status = status
         if owner is not None:

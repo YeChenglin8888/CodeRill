@@ -13,7 +13,7 @@ cheaper one was not enough:
 
 from __future__ import annotations
 
-from .llm import LLM
+from ..providers.base import ChatProvider
 
 CHARS_PER_TOKEN = 4
 KEEP_RECENT = 6       # messages never summarized
@@ -47,7 +47,7 @@ class ContextManager:
     def budget(self) -> int:
         return int(self.max_tokens * self.threshold)
 
-    def maybe_compress(self, messages: list[dict], llm: LLM | None = None) -> bool:
+    def maybe_compress(self, messages: list[dict], llm: ChatProvider | None = None) -> bool:
         if estimate_tokens(messages) <= self.budget:
             return False
 
@@ -76,7 +76,7 @@ class ContextManager:
                 changed = True
         return changed
 
-    def _summarize(self, messages: list[dict], llm: LLM | None) -> bool:
+    def _summarize(self, messages: list[dict], llm: ChatProvider | None) -> bool:
         """Replace everything before the recent window with a written summary."""
         index = _safe_split(messages, KEEP_RECENT)
         if index <= 0:
@@ -87,7 +87,7 @@ class ContextManager:
         messages[:] = [_summary_message(self.summary), *messages[index:]]
         return True
 
-    def _collapse(self, messages: list[dict], llm: LLM | None) -> bool:
+    def _collapse(self, messages: list[dict], llm: ChatProvider | None) -> bool:
         """Keep only the summary and the last couple of turns."""
         if not self.summary:
             self._summarize(messages, llm)
@@ -95,7 +95,7 @@ class ContextManager:
         messages[:] = [_summary_message(self.summary), *messages[index:]]
         return True
 
-    def _write_summary(self, note: str, llm: LLM | None) -> str:
+    def _write_summary(self, note: str, llm: ChatProvider | None) -> str:
         if llm is None:
             return _extract(note)
         try:

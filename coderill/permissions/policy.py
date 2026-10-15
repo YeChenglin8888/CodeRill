@@ -23,7 +23,6 @@ rather than blocking on input that can never arrive.
 
 from __future__ import annotations
 
-import fnmatch
 import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -31,9 +30,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from .tools.base import Tool
-
-GRANTS_FILE = Path.home() / ".coderill" / "permissions.json"
+from ..tools.base import Tool
 
 Asker = Callable[[str, dict[str, Any]], Any]
 
@@ -54,6 +51,7 @@ class Request:
     tool: str
     action: str
     target: str
+    workspace: str = ""
 
 
 @dataclass(frozen=True)
@@ -63,20 +61,23 @@ class Grant:
     action: str
     pattern: str
     tool: str | None = None
+    workspace: str = ""
 
     def matches(self, request: Request) -> bool:
         if request.action != self.action:
             return False
         if self.tool is not None and self.tool != request.tool:
             return False
-        return fnmatch.fnmatch(request.target, self.pattern)
+        return self.workspace == request.workspace and self.pattern == request.target
 
 
 class GrantStore:
     """Persistent grants under ``~/.coderill/permissions.json``."""
 
-    def __init__(self, path: str | Path = GRANTS_FILE) -> None:
-        self.path = Path(path)
+    def __init__(self, path: str | Path | None = None) -> None:
+        from . import GRANTS_FILE
+
+        self.path = Path(path) if path is not None else GRANTS_FILE
         self.grants: list[Grant] = self._load()
 
     def _load(self) -> list[Grant]:
@@ -104,31 +105,32 @@ class GrantStore:
         self.path.write_text(json.dumps({"grants": [asdict(g) for g in self.grants]}, indent=2))
 
 
-def classify(tool_name: str, arguments: dict[str, Any]) -> Request | None:
+def classify(tool_name: str, arguments: dict[str, Any], workspace: str = "") -> Request | None:
     """Map a tool call to a permission request, or None if it is not classifiable."""
     if tool_name in ("write_file", "edit_file"):
         target = arguments.get("path") or arguments.get("file_path") or ""
-        return Request(tool_name, "filesystem", str(target))
-    if tool_name == "bash":
-        return Request(tool_name, "shell", str(arguments.get("command", "")))
+        return Request(tool_name, "filesystem", str(target), workspace)
+    if tool_name in ("bash", "process_start"):
+        return Request(tool_name, "shell", str(arguments.get("command", "")), workspace)
+    if tool_name == "process_stop":
+        return Request(tool_name, "process", str(arguments.get("process_id", "")), workspace)
     if tool_name == "browser_task":
-        return Request(tool_name, "network", _host(str(arguments.get("url", ""))))
+        return Request(tool_name, "network", _host(str(arguments.get("url", ""))), workspace)
     if tool_name == "agent":
-        return Request(tool_name, "agent", "")
+        return Request(tool_name, "agent", "", workspace)
     if tool_name.startswith("mcp__"):
-        return Request(tool_name, "mcp_tool", tool_name)
+        return Request(tool_name, "mcp_tool", tool_name, workspace)
     return None
 
 
 def default_scope(request: Request) -> Grant | None:
     """The narrowest useful grant for a request, used by "always allow"."""
     if request.action == "filesystem":
-        return Grant("filesystem", request.target, request.tool)
+        return Grant("filesystem", request.target, request.tool, request.workspace)
     if request.action == "shell":
-        head = request.target.strip().split(" ", 1)[0]
-        return Grant("shell", f"{head} *", request.tool) if head else None
-    if request.action in ("network", "mcp_tool"):
-        return Grant(request.action, request.target, request.tool)
+        return Grant("shell", request.target, request.tool, request.workspace) if request.target.strip() else None
+    if request.action in ("network", "mcp_tool", "process"):
+        return Grant(request.action, request.target, request.tool, request.workspace)
     return None  # agent: not persistently grantable
 
 
@@ -142,10 +144,12 @@ class Permission:
         *,
         mode: Mode | None = None,
         store: GrantStore | None = None,
+        workspace: str = "",
     ) -> None:
         self.ask = ask
         self.mode = Mode.BYPASS if allow_all else (mode or Mode.STANDARD)
         self.store = store if store is not None else GrantStore()
+        self.workspace = workspace
         self._always: set[str] = set()
 
     @property
@@ -161,7 +165,7 @@ class Permission:
         if not tool.needs_consent:
             return None
 
-        request = classify(tool.name, arguments) or Request(tool.name, "tool", "")
+        request = classify(tool.name, arguments, self.workspace) or Request(tool.name, "tool", "", self.workspace)
 
         if self.mode is Mode.BYPASS:
             return None

@@ -4,7 +4,18 @@ import os
 
 import pytest
 
+from coderill.config import Config
 from coderill.tools import build_registry, shell
+
+
+def test_browser_tool_is_registered_only_when_enabled_for_compatible_provider(tmp_path):
+    client = object()
+    disabled = Config(api_key="unused", workspace=tmp_path)
+    assert "browser_task" not in build_registry(tmp_path, llm=client, config=disabled).names()
+    disabled.browser_enabled = True
+    assert "browser_task" in build_registry(tmp_path, llm=client, config=disabled).names()
+    disabled.provider = "anthropic"
+    assert "browser_task" not in build_registry(tmp_path, llm=client, config=disabled).names()
 
 
 def test_write_then_read_roundtrip(tmp_path):

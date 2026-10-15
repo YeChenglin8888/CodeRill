@@ -1,174 +1,135 @@
-"""A distilled MCP stdio client.
-
-Servers are configured in ``~/.coderill/mcp.json``:
-
-    {"mcpServers": {"fs": {"command": "npx", "args": ["-y", "some-fs-server", "/tmp"]}}}
-
-Each server is a subprocess speaking JSON-RPC 2.0, one message per line over
-stdin/stdout. We complete the handshake, pull the tool list, and expose every
-remote tool to the agent as ``mcp__<server>__<tool>`` so the loop treats them
-exactly like the built-ins. A server that hangs or dies fails that one call as
-an ordinary error string; it never kills the loop.
-"""
+"""MCP stdio and Streamable HTTP connections through the official SDK."""
 
 from __future__ import annotations
 
-import atexit
 import json
-import os
-import subprocess
-import threading
+import re
+from contextlib import AsyncExitStack
 from pathlib import Path
+from typing import Any, ClassVar
 
-from .tools.base import Tool
+from .tools.base import Tool, ToolError
 
 CONFIG_FILE = Path.home() / ".coderill" / "mcp.json"
-PROTOCOL_VERSION = "2024-11-05"
-
-_CLIENTS: list[MCPClient] = []
-
-
-class MCPError(RuntimeError):
-    pass
-
-
-class MCPClient:
-    """One MCP server subprocess."""
-
-    def __init__(self, name: str, command: str, args: list | None = None, env: dict | None = None) -> None:
-        self.name = name
-        self._id = 0
-        self._lock = threading.Lock()
-        self._pending: dict[int, dict] = {}
-        self._proc = subprocess.Popen(
-            [command, *(args or [])],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            bufsize=1,
-            env={**os.environ, **(env or {})},
-        )
-        threading.Thread(target=self._read_loop, daemon=True).start()
-        self._request(
-            "initialize",
-            {"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "coderill", "version": "0.1.0"}},
-            15,
-        )
-        self._notify("notifications/initialized")
-
-    def tools(self) -> list[dict]:
-        return self._request("tools/list", {}, 15).get("tools", [])
-
-    def call_tool(self, tool_name: str, arguments: dict) -> str:
-        result = self._request("tools/call", {"name": tool_name, "arguments": arguments}, 120)
-        return _render(result)
-
-    def close(self) -> None:
-        try:
-            if self._proc.poll() is None:
-                self._proc.terminate()
-        except OSError:
-            pass
-
-    # -- transport ---------------------------------------------------------
-
-    def _send(self, message: dict) -> None:
-        with self._lock:
-            if self._proc.stdin is None or self._proc.poll() is not None:
-                raise MCPError(f"MCP server '{self.name}' is not running")
-            self._proc.stdin.write(json.dumps(message) + "\n")
-            self._proc.stdin.flush()
-
-    def _notify(self, method: str, params: dict | None = None) -> None:
-        self._send({"jsonrpc": "2.0", "method": method, "params": params or {}})
-
-    def _request(self, method: str, params: dict, timeout: float) -> dict:
-        self._id += 1
-        request_id = self._id
-        box: dict = {"event": threading.Event()}
-        self._pending[request_id] = box
-        try:
-            self._send({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
-            if not box["event"].wait(timeout):
-                raise MCPError(f"MCP server '{self.name}' timed out on {method}")
-            if "error" in box:
-                raise MCPError(f"MCP error on {method}: {box['error']}")
-            return box.get("result", {})
-        finally:
-            self._pending.pop(request_id, None)
-
-    def _read_loop(self) -> None:
-        for line in self._proc.stdout:  # type: ignore[union-attr]
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                message = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            box = self._pending.get(message.get("id"))
-            if box is None:
-                continue
-            if "error" in message:
-                box["error"] = message["error"]
-            else:
-                box["result"] = message.get("result", {})
-            box["event"].set()
-        # The stream ended: fail anyone still waiting instead of hanging.
-        for box in list(self._pending.values()):
-            box["error"] = {"message": "server exited"}
-            box["event"].set()
 
 
 class MCPTool(Tool):
-    """A remote MCP tool, exposed to the agent like a built-in."""
+    def __init__(self, manager: MCPManager, server: str, spec: Any) -> None:
+        self.manager = manager
+        self.server = server
+        self.remote_name = spec.name
+        self.name = f"mcp__{server}__{spec.name}"
+        self.description = spec.description or ""
+        self.parameters = spec.inputSchema or {"type": "object", "properties": {}}
 
-    def __init__(self, client: MCPClient, spec: dict) -> None:
-        self.client = client
-        self._remote = spec["name"]
-        self.name = f"mcp__{client.name}__{spec['name']}"
-        self.description = spec.get("description", "")
-        self.parameters = spec.get("inputSchema") or {"type": "object", "properties": {}}
-        self.read_only = False
+    async def aexecute(self, **kwargs: Any) -> str:
+        return await self.manager.call_tool(self.server, self.remote_name, kwargs)
 
-    def execute(self, **kwargs) -> str:
-        return self.client.call_tool(self._remote, kwargs)
-
-
-def _render(result: dict) -> str:
-    parts = []
-    for item in result.get("content", []):
-        if item.get("type") == "text":
-            parts.append(item.get("text", ""))
-        else:
-            parts.append(json.dumps(item))
-    text = "\n".join(parts) if parts else json.dumps(result)
-    return f"Error: {text}" if result.get("isError") else text
+    def execute(self, **kwargs: Any) -> str:
+        raise ToolError("MCP calls require the async runtime")
 
 
-def load_mcp_tools(path: Path = CONFIG_FILE) -> list[Tool]:
-    """Start every configured server and return its tools. Bad servers are skipped."""
-    path = Path(path)
-    if not path.exists():
-        return []
-    try:
-        config = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return []
+class MCPToolSearch(Tool):
+    name = "mcp_tool_search"
+    description = "Find connected MCP capabilities by name or description; matching tools become available this turn."
+    read_only = True
+    parameters: ClassVar[dict[str, Any]] = {
+        "type": "object", "properties": {"query": {"type": "string"}},
+        "required": ["query"], "additionalProperties": False,
+    }
 
-    tools: list[Tool] = []
-    for name, spec in (config.get("mcpServers") or {}).items():
+    def __init__(self, manager: MCPManager) -> None:
+        self.manager = manager
+
+    def execute(self, query: str) -> str:
+        words = set(re.findall(r"\w+", query.casefold()))
+        if not words:
+            raise ToolError("search query must not be blank")
+        ranked = []
+        for tool in self.manager.tools:
+            name = tool.name.casefold()
+            description = tool.description.casefold()
+            score = sum(10 if word in name else 1 if word in description else 0 for word in words)
+            if score:
+                ranked.append((-score, name, tool))
+        ranked.sort()
+        return json.dumps({"matches": [
+            {"name": tool.name, "description": tool.description[:240]}
+            for _, _, tool in ranked[:8]
+        ]}, ensure_ascii=False)
+
+
+class MCPManager:
+    def __init__(self, path: Path = CONFIG_FILE) -> None:
+        self.path = Path(path)
+        self.tools: list[MCPTool] = []
+        self.sessions: dict[str, Any] = {}
+        self._connections: dict[str, AsyncExitStack] = {}
+        self.errors: dict[str, str] = {}
+
+    async def connect(self) -> list[MCPTool]:
+        if not self.path.exists():
+            return []
+        config = json.loads(self.path.read_text(encoding="utf-8"))
+        for name, spec in (config.get("mcpServers") or {}).items():
+            if name in self.sessions:
+                continue
+            try:
+                await self._connect_one(name, spec)
+                self.errors.pop(name, None)
+            except Exception as exc:  # noqa: BLE001 - one server must not block other tools
+                self.errors[name] = str(exc)
+        return self.tools
+
+    async def _connect_one(self, name: str, spec: dict[str, Any]) -> None:
+        from mcp import ClientSession, StdioServerParameters
+        from mcp.client.stdio import stdio_client
+        from mcp.client.streamable_http import streamable_http_client
+
+        stack = AsyncExitStack()
         try:
-            client = MCPClient(name, spec["command"], spec.get("args", []), spec.get("env"))
-            _CLIENTS.append(client)
-            tools.extend(MCPTool(client, tool_spec) for tool_spec in client.tools())
-        except Exception:  # noqa: BLE001, S112 - one bad server must not stop the rest
-            continue
-    return tools
+            if "url" in spec:
+                streams = await stack.enter_async_context(streamable_http_client(spec["url"]))
+            else:
+                params = StdioServerParameters(
+                    command=spec["command"], args=spec.get("args", []), env=spec.get("env"),
+                )
+                streams = await stack.enter_async_context(stdio_client(params))
+            session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
+            await session.initialize()
+            discovered = await session.list_tools()
+            self.sessions[name] = session
+            self._connections[name] = stack
+            self.tools.extend(MCPTool(self, name, tool) for tool in discovered.tools)
+        except BaseException:
+            await stack.aclose()
+            raise
 
+    async def call_tool(self, server: str, name: str, arguments: dict[str, Any]) -> str:
+        session = self.sessions.get(server)
+        if session is None:
+            raise ToolError(f"MCP server '{server}' is disconnected")
+        try:
+            result = await session.call_tool(name, arguments)
+        except Exception as exc:
+            await self.disconnect(server)
+            raise ToolError(f"MCP server '{server}' disconnected: {exc}") from exc
+        content = []
+        for item in result.content:
+            if getattr(item, "type", "") == "text":
+                content.append(item.text)
+            else:
+                content.append(item.model_dump_json())
+        body = "\n".join(content)
+        return f"Error: {body}" if result.isError else body
 
-@atexit.register
-def _shutdown() -> None:
-    for client in _CLIENTS:
-        client.close()
+    async def disconnect(self, server: str) -> None:
+        self.sessions.pop(server, None)
+        self.tools = [tool for tool in self.tools if tool.server != server]
+        stack = self._connections.pop(server, None)
+        if stack is not None:
+            await stack.aclose()
+
+    async def close(self) -> None:
+        for server in list(self.sessions):
+            await self.disconnect(server)

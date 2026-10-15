@@ -14,6 +14,16 @@ from coderill.tools import Registry, build_registry
 from coderill.tools.taskplan import task_plan_tools
 
 
+def test_cycle_is_rejected_without_partial_update():
+    plan = TaskPlan("dag")
+    plan.create(["first", "second"], expected_revision=0)
+    plan.update("t2", expected_revision=1, depends_on=["t1"])
+    original = plan.snapshot()
+    with pytest.raises(ValueError, match="cycle"):
+        plan.update("t1", expected_revision=2, status="in_progress", depends_on=["t2"])
+    assert plan.snapshot() == original
+
+
 class _FakeLLM:
     def __init__(self, script):
         self.script = list(script)

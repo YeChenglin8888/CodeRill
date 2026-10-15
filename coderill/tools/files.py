@@ -89,6 +89,7 @@ class WriteFileTool(Tool):
         target.parent.mkdir(parents=True, exist_ok=True)
         existed = target.exists()
         target.write_text(content)
+        checkpoints.seal(target)
         verb = "Overwrote" if existed else "Created"
         return f"{verb} {path} ({len(content.splitlines())} lines, {len(content)} chars)."
 
@@ -135,6 +136,7 @@ class EditFileTool(Tool):
         updated = text.replace(old_string, new_string, -1 if replace_all else 1)
         checkpoints.record(target)
         target.write_text(updated)
+        checkpoints.seal(target)
 
         replaced = count if replace_all else 1
         diff = _unified_diff(text, updated, file_path)

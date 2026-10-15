@@ -46,6 +46,24 @@ def test_loop_executes_a_tool_then_finishes(tmp_path, monkeypatch):
     assert [m["role"] for m in session.messages] == ["user", "assistant", "tool", "assistant"]
 
 
+def test_mixed_tool_batch_preserves_write_then_read_order(tmp_path, monkeypatch):
+    batch = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {"id": "write", "type": "function", "function": {"name": "write_file", "arguments": '{"path":"a.txt","content":"new"}'}},
+            {"id": "read", "type": "function", "function": {"name": "read_file", "arguments": '{"path":"a.txt"}'}},
+        ],
+    }
+    agent, session = _agent(tmp_path, monkeypatch, [batch, {"role": "assistant", "content": "done"}])
+
+    agent.run("write then read")
+
+    results = [message["content"] for message in session.messages if message["role"] == "tool"]
+    assert results[0].startswith("Created a.txt")
+    assert "new" in results[1]
+
+
 def test_loop_stops_when_no_tool_is_called(tmp_path, monkeypatch):
     agent, session = _agent(tmp_path, monkeypatch, [{"role": "assistant", "content": "just talking"}])
     assert agent.run("hello") == "just talking"
