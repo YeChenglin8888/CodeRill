@@ -54,7 +54,7 @@ Select a profile in the REPL with `/model claude` or in the TUI model selector. 
 | `coderill/runtime/` | Process cancellation and background task state |
 | `coderill/tools/`, `coderill/mcp.py` | Built-in and MCP tools |
 
-A pending review records its ID, tool arguments, diff, target path, and file digest. If the file changes before approval, CodeRill creates a new review. Tool calls started before a crash are recorded as result-unknown and are not automatically replayed. Old v1 sessions remain readable; new events use v2. The legacy synchronous Python `Agent` still exists for existing direct callers; the CLI/TUI use `AgentRuntime`.
+A pending review records its ID, tool arguments, diff, target path, and file digest. If the file changes before approval, CodeRill creates a new review. Tool calls started before a crash are recorded as result-unknown and are not automatically replayed. Old v1 sessions remain readable; new events use v2. Python callers use the async `AgentRuntime`; the former synchronous `Agent` API has been removed.
 
 Read-only tool calls in a consecutive batch run concurrently. Writes stay in order. Background child agents use independent sessions and budgets. A writable child runs in a Git worktree; `/apply CHILD_ID` previews and explicitly applies its diff. A worktree isolates the working directory, not the operating system.
 

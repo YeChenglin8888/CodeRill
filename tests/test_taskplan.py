@@ -4,13 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import coderill.session as session_mod
-from coderill.agent import PLAN_RECONCILE, Agent
-from coderill.config import Config
-from coderill.permissions import Permission
-from coderill.session import Session
 from coderill.taskplan import StaleRevision, TaskPlan, UnknownTask
-from coderill.tools import Registry, build_registry
+from coderill.tools import Registry
 from coderill.tools.taskplan import task_plan_tools
 
 
@@ -22,17 +17,6 @@ def test_cycle_is_rejected_without_partial_update():
     with pytest.raises(ValueError, match="cycle"):
         plan.update("t1", expected_revision=2, status="in_progress", depends_on=["t2"])
     assert plan.snapshot() == original
-
-
-class _FakeLLM:
-    def __init__(self, script):
-        self.script = list(script)
-
-    def stream(self, messages, tools=None, deadline=None):
-        message = self.script.pop(0)
-        for char in message.get("content") or "":
-            yield ("delta", char)
-        yield ("final", message, None)
 
 
 def _registry(plan):
@@ -118,31 +102,3 @@ def test_stale_revision_surfaces_as_a_tool_error():
     out = registry.dispatch("task_create", {"contents": ["b"], "expected_revision": 0})
     assert out.startswith("Error:")
     assert "stale revision" in out
-
-
-def test_agent_nudges_once_when_the_plan_is_unfinished(tmp_path, monkeypatch):
-    monkeypatch.setattr(session_mod, "SESSION_DIR", tmp_path)
-    script = [
-        {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": "c1",
-                    "type": "function",
-                    "function": {"name": "task_create", "arguments": '{"contents": ["a"], "expected_revision": 0}'},
-                }
-            ],
-        },
-        {"role": "assistant", "content": "done"},
-        {"role": "assistant", "content": "final after nudge"},
-    ]
-    config = Config(api_key="x", workspace=tmp_path)
-    session = Session.new("m", str(tmp_path))
-    agent = Agent(config, session, build_registry(tmp_path), llm=_FakeLLM(script), permissions=Permission(allow_all=True))
-
-    result = agent.run("go")
-
-    assert result == "final after nudge"
-    assert len(agent.plan.tasks) == 1
-    assert any(m.get("content") == PLAN_RECONCILE for m in session.messages)

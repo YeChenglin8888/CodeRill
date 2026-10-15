@@ -1,12 +1,14 @@
 """Tests for the skill system."""
 
+import asyncio
+
 import pytest
 
-import coderill.session as session_mod
-from coderill.agent import Agent
+from coderill.agent import AgentRuntime
 from coderill.config import Config
-from coderill.permissions import Permission
-from coderill.session import Session
+from coderill.permissions import Mode, ReviewManager
+from coderill.providers.types import ChatResponse, ChatStreamEvent
+from coderill.session import Session, SessionStore
 from coderill.skills import SkillCatalog, default_roots
 from coderill.tools import build_registry
 from coderill.tools.base import ToolError
@@ -17,11 +19,6 @@ def _write_skill(root, name, description, body="Body text"):
     directory = root / name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {description}\n---\n{body}\n")
-
-
-class _FakeLLM:
-    def stream(self, messages, tools=None, deadline=None):
-        return iter(())
 
 
 def test_discovers_directory_skills(tmp_path):
@@ -107,32 +104,28 @@ def test_load_skill_tool_rejects_unknown_names(tmp_path):
         tool.execute("nope")
 
 
-def test_agent_exposes_skills_and_the_tool(tmp_path, monkeypatch):
-    monkeypatch.setattr(session_mod, "SESSION_DIR", tmp_path)
+def test_runtime_exposes_skills_and_the_tool(tmp_path):
     _write_skill(tmp_path / ".agents" / "skills", "demo", "A demo skill")
 
     config = Config(api_key="x", workspace=tmp_path)
-    session = Session.new("m", str(tmp_path))
+    session = Session.new("m", str(tmp_path), SessionStore(tmp_path / "sessions"))
     registry = build_registry(tmp_path)
-    agent = Agent(
-        config,
-        session,
-        registry,
-        llm=_FakeLLM(),
-        permissions=Permission(allow_all=True),
-        skills=SkillCatalog(default_roots(tmp_path)),
-    )
+    skills = SkillCatalog(default_roots(tmp_path))
+    registry.register(LoadSkillTool(skills))
+
+    class Provider:
+        def __init__(self):
+            self.requests = []
+
+        async def stream(self, request):
+            self.requests.append(request)
+            yield ChatStreamEvent("completed", response=ChatResponse("done"))
+
+    provider = Provider()
+    agent = AgentRuntime(config, session, registry, provider, ReviewManager(tmp_path, mode=Mode.BYPASS), skills=skills)
+    assert asyncio.run(agent.run_turn("hello")).status == "complete"
 
     assert registry.get("load_skill") is not None
-    system = agent._outgoing_messages()[0]["content"]
+    system = provider.requests[0].messages[0].content
     assert "# Skills" in system
     assert "demo: A demo skill" in system
-
-
-def test_agent_without_skills_registers_no_tool(tmp_path, monkeypatch):
-    monkeypatch.setattr(session_mod, "SESSION_DIR", tmp_path)
-    config = Config(api_key="x", workspace=tmp_path)
-    session = Session.new("m", str(tmp_path))
-    registry = build_registry(tmp_path)
-    Agent(config, session, registry, llm=_FakeLLM(), permissions=Permission(allow_all=True), skills=SkillCatalog([]))
-    assert registry.get("load_skill") is None

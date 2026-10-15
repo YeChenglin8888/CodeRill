@@ -45,6 +45,7 @@ class Config:
     max_retries: int = 4
     request_timeout: int = 120
     max_context_tokens: int = 128_000
+    benchmark: bool = False
     # Jev / browser-task settings.
     browser_enabled: bool = False
     browser_channel: str = "msedge"

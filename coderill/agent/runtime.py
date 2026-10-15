@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -76,6 +78,10 @@ class AgentRuntime:
         self._turn_deadline = 0.0
         self.processes = ProcessManager()
         self.context = AsyncContextManager(config.max_context_tokens, reserve=config.max_tokens)
+        self._failures: dict[str, int] = {}
+        self._blocked_calls: set[str] = set()
+        self._needs_validation = False
+        self._evidence_retries = 0
 
     async def run_turn(self, text: str, attachments: list[dict[str, Any]] | None = None) -> TurnResult:
         with self.session.store.driver_lock(self.session.id):
@@ -91,8 +97,14 @@ class AgentRuntime:
             ):
                 return TurnResult("failed", error=f"model {self.provider.model} does not support image input")
             self._cancel = asyncio.Event()
+            self._failures.clear()
+            self._blocked_calls.clear()
+            self._needs_validation = False
+            self._evidence_retries = 0
             self._turn_deadline = time.monotonic() + self.config.max_turn_seconds
             self.session.start_turn()
+            if self.config.benchmark:
+                self._save_benchmark_state()
             message = {"role": "user", "content": text}
             if attachments:
                 message["attachments"] = attachments
@@ -106,6 +118,12 @@ class AgentRuntime:
     async def resume_turn(self, request_id: str | None = None, decision: str | None = None) -> TurnResult:
         with self.session.store.driver_lock(self.session.id):
             self._pin_skills()
+            if self.config.benchmark:
+                state = self.session.benchmark_state
+                self._failures = dict(state.get("failures", {}))
+                self._blocked_calls = set(state.get("blocked_calls", []))
+                self._needs_validation = bool(state.get("needs_validation", False))
+                self._evidence_retries = int(state.get("evidence_retries", 0))
             self._cancel = asyncio.Event()
             self._turn_deadline = time.monotonic() + self.config.max_turn_seconds
             review = self.session.pending_review
@@ -242,6 +260,14 @@ class AgentRuntime:
                     continue
                 if self.plan and self.plan.unfinished() and not reconciled and self.session.turn_requests < self.config.max_turns:
                     reconciled = True
+                    continue
+                if self.config.benchmark and self._needs_validation:
+                    if self._evidence_retries >= 2 or self.session.turn_requests >= self.config.max_turns:
+                        self.session.set_status("failed")
+                        return TurnResult("failed", error="changed files without a successful validation command")
+                    self._evidence_retries += 1
+                    self._save_benchmark_state()
+                    self.session.record({"role": "user", "content": "Run a relevant test or diagnostic command before finishing."})
                     continue
                 self.session.set_status("complete")
                 return TurnResult("complete", text=response.content)
@@ -450,11 +476,38 @@ class AgentRuntime:
             self._record_result(call["id"], "failed" if result.startswith("Error:") else "success", result)
 
     def _record_result(self, call_id: str, status: str, content: str) -> None:
+        call = next((item for item in self._pending_calls() if item["id"] == call_id), None)
+        if self.config.benchmark and call is not None:
+            key = _call_key(call)
+            if status == "failed":
+                fingerprint = key + hashlib.sha256(content.strip().encode()).hexdigest()
+                count = self._failures.get(fingerprint, 0) + 1
+                self._failures[fingerprint] = count
+                if count >= 3:
+                    self._blocked_calls.add(key)
+                if count in (2, 3):
+                    content += "\nRepeated failure: inspect the cause and change approach before retrying."
+            elif status == "success":
+                self._failures.clear()
+                self._blocked_calls.clear()
+                if call["name"] in ("write_file", "edit_file", "delete_file", "apply_patch"):
+                    self._needs_validation = True
+                elif _is_validation(call):
+                    self._needs_validation = False
+            self._save_benchmark_state()
         result = ToolResult(call_id, status, content)
         self.session.finish_tool(result.call_id, result.status, result.content)
         self.session.record({"role": "tool", "tool_call_id": result.call_id, "content": result.content})
         self.on_event(ChatStreamEvent("tool_result", text=result.content,
                                       tool_call=ToolCall(result.call_id, "", {}), status=result.status))
+
+    def _save_benchmark_state(self) -> None:
+        self.session.record_benchmark_state({
+            "failures": self._failures,
+            "blocked_calls": sorted(self._blocked_calls),
+            "needs_validation": self._needs_validation,
+            "evidence_retries": self._evidence_retries,
+        })
 
     def _repair_finished_results(self) -> None:
         for call in self._pending_calls():
@@ -479,6 +532,8 @@ class AgentRuntime:
             self._record_result(call["id"], "unknown" if started else status, content)
 
     def _validate(self, call: dict[str, Any]) -> str:
+        if self.config.benchmark and _call_key(call) in self._blocked_calls:
+            return "Error: unchanged tool call blocked after three identical failures; change parameters or approach"
         tool = self.registry.get(call["name"])
         if tool is None:
             return f"Error: unknown tool '{call['name']}'"
@@ -497,6 +552,19 @@ class AgentRuntime:
             if expected in types and (not isinstance(value, types[expected]) or expected == "integer" and isinstance(value, bool)):
                 return f"Error: argument '{key}' must be {expected}"
         return ""
+
+
+def _call_key(call: dict[str, Any]) -> str:
+    return json.dumps([call["name"], call["arguments"]], sort_keys=True, ensure_ascii=False, default=str)
+
+
+def _is_validation(call: dict[str, Any]) -> bool:
+    if call["name"] == "diagnostics":
+        return True
+    if call["name"] != "bash":
+        return False
+    return bool(re.search(r"\b(pytest|ruff|unittest|mypy|npm test|cargo test|go test)\b",
+                          str(call["arguments"].get("command", "")), re.IGNORECASE))
 
 
 def _assistant_message(response: ChatResponse) -> dict[str, Any]:

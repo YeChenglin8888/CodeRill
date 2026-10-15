@@ -69,6 +69,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--resume", default=None, help="Resume a saved session by id (prefix ok).")
     parser.add_argument("--list", action="store_true", help="List saved sessions and exit.")
     parser.add_argument("--plan", action="store_true", help="Start in plan mode (read-only).")
+    parser.add_argument("--benchmark", action="store_true", help="Require execution evidence before ending a non-interactive task.")
     parser.add_argument(
         "--auto-approve", action="store_true", help="Run every tool without asking for consent."
     )
@@ -115,7 +116,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        config = Config.from_env(workspace=args.cwd, overrides={"model": args.model, "provider": args.provider})
+        config = Config.from_env(workspace=args.cwd, overrides={"model": args.model, "provider": args.provider,
+                                                                "benchmark": args.benchmark})
     except (RuntimeError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         return 1

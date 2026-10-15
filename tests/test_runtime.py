@@ -33,6 +33,55 @@ def runtime(tmp_path, session, provider, mode=Mode.STANDARD):
     return AgentRuntime(config, session, registry, provider, reviews)
 
 
+def test_benchmark_requires_validation_after_write(tmp_path):
+    (tmp_path / "test_dummy.py").write_text("def test_ok(): assert True\n")
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    provider = Provider(
+        ChatResponse("", (ToolCall("w", "write_file", {"path": "a.txt", "content": "ok"}),)),
+        ChatResponse("done"),
+        ChatResponse("", (ToolCall("v", "bash", {"command": "python -m pytest -q test_dummy.py"}),)),
+        ChatResponse("verified"),
+    )
+    runner = runtime(tmp_path, session, provider, Mode.BYPASS)
+    runner.config.benchmark = True
+    runner.config.max_turns = 8
+    result = asyncio.run(runner.run_turn("write and verify"))
+    assert result.status == "complete", (result.error, session.finished_calls, session.messages)
+    assert result.text == "verified"
+    assert "Run a relevant test" in [m["content"] for m in session.messages if m["role"] == "user"][-1]
+
+
+def test_benchmark_blocks_fourth_identical_failure(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    bad = lambda call_id: ChatResponse("", (ToolCall(call_id, "read_file", {"path": "missing.txt"}),))
+    provider = Provider(bad("a"), bad("b"), bad("c"), bad("d"), ChatResponse("done"))
+    runner = runtime(tmp_path, session, provider, Mode.BYPASS)
+    runner.config.benchmark = True
+    runner.config.max_turns = 8
+    result = asyncio.run(runner.run_turn("read"))
+    assert result.status == "complete"
+    assert "blocked after three" in session.finished_calls["d"]["content"]
+
+
+def test_benchmark_evidence_survives_reload(tmp_path):
+    store = SessionStore(tmp_path / "sessions")
+    session = Session.new("fake", str(tmp_path), store)
+    provider = Provider(ChatResponse("", (ToolCall("w", "write_file", {"path": "a.txt", "content": "ok"}),)),
+                        ChatResponse("done"), ChatResponse("still done"), ChatResponse("done again"))
+    first = runtime(tmp_path, session, provider)
+    first.config.benchmark = True
+    review = asyncio.run(first.run_turn("change it"))
+    assert review.status == "waiting"
+    restored = Session.load(session.id, store)
+    second = runtime(tmp_path, restored, provider)
+    second.config.benchmark = True
+    second.config.max_turns = 4
+    result = asyncio.run(second.resume_turn(review.review["id"], "approve"))
+    assert result.status == "failed"
+    assert "without a successful validation" in result.error
+    assert restored.benchmark_state["needs_validation"]
+
+
 def test_final_answer_gets_one_plan_reconciliation_attempt(tmp_path):
     session = Session.new("fake", str(tmp_path), SessionStore(tmp_path))
     plan = TaskPlan()

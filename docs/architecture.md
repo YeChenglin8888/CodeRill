@@ -1,6 +1,6 @@
 # CodeRill architecture and failure semantics
 
-CodeRill's production entry points are `coderill/app/cli.py` and `coderill/app/tui.py`. Both assemble `AgentRuntime` through `app/factory.py` and `app/state.py`. The older synchronous `Agent` remains for existing Python callers; the CLI and TUI use the async runtime.
+CodeRill's production entry points are `coderill/app/cli.py` and `coderill/app/tui.py`. Both assemble `AgentRuntime` through `app/factory.py` and `app/state.py`. Python callers also use the async runtime.
 
 ```mermaid
 flowchart TD

@@ -73,6 +73,7 @@ class Session:
         task_boundary_pending: bool = False,
         processes: dict[str, dict] | None = None,
         skill_snapshot: list[dict] | None = None,
+        benchmark_state: dict | None = None,
     ) -> None:
         self.id = id
         self.model = model
@@ -101,6 +102,7 @@ class Session:
         self.task_boundary_pending = task_boundary_pending
         self.processes = dict(processes or {})
         self.skill_snapshot = None if skill_snapshot is None else list(skill_snapshot)
+        self.benchmark_state = dict(benchmark_state or {})
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -214,6 +216,10 @@ class Session:
         self.usage["requests"] += 1
         self.usage["input_tokens"] += input_tokens
         self.usage["output_tokens"] += output_tokens
+
+    def record_benchmark_state(self, state: dict) -> None:
+        self._append({"type": "benchmark_state", "state": state})
+        self.benchmark_state = dict(state)
 
     def request_review(self, review: dict) -> None:
         self._append({"type": "review_requested", "review": review})

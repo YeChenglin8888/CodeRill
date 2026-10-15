@@ -19,6 +19,7 @@ def project_events(events: list[dict]) -> dict:
         "pending_review": None,
         "incomplete_calls": {},
         "finished_calls": {},
+        "benchmark_state": {},
         "last_status": "complete",
         "turn_requests": 0,
         "turn_tool_rounds": 0,
@@ -60,6 +61,8 @@ def project_events(events: list[dict]) -> dict:
         elif kind == "tool_finished":
             state["incomplete_calls"].pop(event["call_id"], None)
             state["finished_calls"][event["call_id"]] = event
+        elif kind == "benchmark_state":
+            state["benchmark_state"] = dict(event["state"])
         elif kind == "turn_status":
             state["last_status"] = event["status"]
         elif kind == "turn_started":

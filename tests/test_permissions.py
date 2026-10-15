@@ -3,7 +3,7 @@
 import coderill.permissions as permissions_mod
 from coderill.permissions import GrantStore, Mode, Permission, classify, default_scope
 from coderill.tools import build_registry
-from coderill.tools.agent import AgentTool
+from coderill.tools.agent import DelegateTool
 
 
 def test_read_only_allowed_without_an_asker(tmp_path):
@@ -70,7 +70,7 @@ def test_aggressive_mode_auto_allows_filesystem_but_not_agent(tmp_path):
     store = GrantStore(tmp_path / "grants.json")
     permission = Permission(ask=lambda name, args: False, mode=Mode.AGGRESSIVE, store=store)
     registry = build_registry(tmp_path)
-    registry.register(AgentTool(lambda task: "ok"))
+    registry.register(DelegateTool(object()))
     assert permission.check(registry.get("write_file"), {"path": "a.py", "content": "x"}) is None
     assert permission.check(registry.get("agent"), {"task": "x"}).startswith("refused")
 
