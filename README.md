@@ -80,6 +80,8 @@ python -m pip wheel . --no-deps --wheel-dir dist
 
 CI runs tests, Ruff, CLI import/help, and wheel building on Linux and Windows. Core scenarios use fakes and need no API key. Real model, browser, and MCP server checks require explicit integration runs; the browser integration tests are opt-in.
 
+Harbor preflight, the single-task command, and offline result reporting are documented in [docs/evaluation.md](docs/evaluation.md). No real Harbor task result is claimed by the offline suite.
+
 ## License
 
 MIT. The Jev browser reader's third-party attribution remains in `coderill/browser_NOTICE.txt`.

@@ -56,6 +56,6 @@ class CodeRillHarborAgent(BaseInstalledAgent):
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         del context
         await self.exec_as_agent(environment, command=(
-            f"{REMOTE_VENV}/bin/python -m coderill --cwd . --auto-approve "
+            f"{REMOTE_VENV}/bin/python -m coderill --cwd . --auto-approve --benchmark "
             f"--message={shlex.quote(instruction)}"
         ))

@@ -42,7 +42,7 @@
 
 追问：既然有这么多层，是不是过度设计？
 
-我：每层都对应一个独立变化或故障边界。换模型不应改权限；换界面不应改回合语义；压缩上下文不应删掉审计日志；工具失败不应直接破坏会话。抽象只保留这些真实边界。旧同步 Agent 目前还为直接 Python 调用方保留，生产 CLI/TUI 主线使用异步 AgentRuntime。
+我：每层都对应一个独立变化或故障边界。换模型不应改权限；换界面不应改回合语义；压缩上下文不应删掉审计日志；工具失败不应直接破坏会话。抽象只保留这些真实边界。Python、CLI 和 TUI 统一使用异步 AgentRuntime；旧同步 Agent 已移除。
 
 源码落点：coderill/app/cli.py；coderill/app/state.py；coderill/agent/runtime.py；coderill/providers/types.py；tests/test_architecture.py。
 
@@ -426,7 +426,7 @@
 
 追问：这与 FirstCoder 的 L1–L4 完全一样吗？
 
-我：不是。CodeRill 已有任务边界分类、旧读取失效标记和内容类型预览，但没有 FirstCoder 对搜索命中、源码区间、构建日志等每一类分别做深度压缩的完整策略，也没有真实任务集证明压缩质量相同。面试时只描述当前代码确实执行的规则。
+我：CodeRill 已有 L1–L4 管线和搜索、diff、构建日志、JSON、代码、HTML 等分类压缩，原文可按归档摘要找回；目前没有真实任务集证明压缩质量与对照实现相同。面试时只描述当前代码确实执行的规则。
 
 ### 47 面试官：为什么不只保留最近十条消息？
 
@@ -546,7 +546,7 @@
 
 ### 60 面试官：FirstCoder 有 benchmark，CodeRill 的成绩怎么讲？
 
-我：不能把 FirstCoder 的 Harbor 数字或 pass@1 归到 CodeRill。CodeRill 有离线单元、契约和故障注入测试；`examples/live_eval.py` 可做单项真实模型 smoke，`examples/benchmark_suite.py` 可以按固定清单复制工作区、执行一次任务和显式验证命令，并把未验证、验证失败、基础设施错误分开统计。另有可选 Harbor 适配器，目前只用假接口验证了源码分发和命令引用，还没有真实容器任务结果。面试只报告当前实测的本地测试结果，并说明真实模型、Harbor、MCP 和 Linux CI 尚未现场验证。通过数以 `pytest` 最新输出和 `docs/implementation-status.md` 为准。
+我：不能把 FirstCoder 的 Harbor 数字或 pass@1 归到 CodeRill。CodeRill 有离线单元、契约和故障注入测试；`examples/live_eval.py` 可做单项真实模型 smoke，`examples/benchmark_suite.py` 可以按固定清单复制工作区、执行一次任务和显式验证命令。Harbor 预检、单题入口及分类报告位于 `examples/harbor_run.py`，但尚无真实容器任务结果。面试只报告当前实测的本地测试结果，并说明真实模型、Harbor、MCP 和 Linux CI 尚未现场验证。通过数以 `pytest` 最新输出和 `docs/implementation-status.md` 为准。
 
 追问：那你个人最大的贡献是什么？
 
