@@ -21,7 +21,6 @@ from rich.console import Console
 
 from .. import __version__, checkpoints
 from ..config import Config
-from ..llm import LLM
 from ..permissions import Mode
 from ..providers.openai_compatible import Usage
 from ..session import SESSION_DIR, Session
@@ -276,12 +275,8 @@ def _handle_command(state: State, console: Console, text: str) -> bool:
             console.print(f"[red]{exc}[/red]")
     elif command == "/model":
         try:
-            config = Config.from_env(config.workspace, overrides={"profile": rest})
-            state.config = config
-            state.llm = LLM(config)
-            state.session.set_model(config.model)
-            state.rebuild()
-            console.print(f"[green]model: {config.provider}/{config.model}[/green]")
+            state.select_model(rest)
+            console.print(f"[green]model: {state.config.provider}/{state.config.model}[/green]")
         except (RuntimeError, ValueError) as exc:
             console.print(f"[red]{exc}[/red]")
     elif command == "/background":

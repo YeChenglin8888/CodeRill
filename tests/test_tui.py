@@ -1,5 +1,7 @@
 import asyncio
 
+from textual.widgets import TextArea
+
 from coderill.agent.runtime import TurnResult
 from coderill.app.tui import CodeRillApp
 from coderill.config import Config
@@ -39,6 +41,11 @@ class FakeState:
     def rebuild(self):
         self.agent = FakeAgent()
 
+    def select_model(self, profile):
+        self.config.model = profile
+        self.session.set_model(profile)
+        self.rebuild()
+
 
 def test_tui_stream_review_and_approval(tmp_path):
     async def scenario():
@@ -74,11 +81,13 @@ def test_tui_switches_sessions_with_shared_state(tmp_path):
         state = FakeState(tmp_path)
         other = Session.new("fake", str(tmp_path), state.session.store)
         other.record({"role": "user", "content": "saved message"})
+        state.pending_attachments.append({"name": "old.png"})
         app = CodeRillApp(state)
         async with app.run_test() as pilot:
             app.query_one("#sessions").value = other.id
-            await pilot.pause()
+            await pilot.pause(0.2)
             assert state.session.id == other.id
+            assert not state.pending_attachments
             assert app.state.agent.on_event == app._runtime_event
     asyncio.run(scenario())
 
@@ -107,4 +116,38 @@ def test_tui_cancel_reaches_active_turn(tmp_path):
             await pilot.pause()
             assert state.agent.cancelled
             assert app.active_task is None
+    asyncio.run(scenario())
+
+
+def test_tui_multiline_and_file_attachment(tmp_path):
+    async def scenario():
+        state = FakeState(tmp_path)
+        path = tmp_path / "note.txt"
+        path.write_text("hello", encoding="utf-8")
+        app = CodeRillApp(state)
+        async with app.run_test() as pilot:
+            await pilot.press(*str(path), "enter")
+            await pilot.pause()
+            assert state.pending_attachments[0]["name"] == "note.txt"
+            assert "note.txt" in str(app.query_one("#attachments").render())
+            await pilot.press("h", "i", "shift+enter", "t", "h", "e", "r", "e")
+            assert app.query_one("#message", TextArea).text == "hi\nthere"
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app.review is not None
+    asyncio.run(scenario())
+
+
+def test_tui_clipboard_image(tmp_path, monkeypatch):
+    monkeypatch.setattr("coderill.app.tui.read_image", lambda: b"PNG-data")
+
+    async def scenario():
+        state = FakeState(tmp_path)
+        app = CodeRillApp(state)
+        async with app.run_test() as pilot:
+            app.action_paste_image()
+            await pilot.pause()
+            item = state.pending_attachments[0]
+            assert item["media_type"] == "image/png"
+            assert state.session.store.read_blob(state.session.id, item["digest"]) == b"PNG-data"
     asyncio.run(scenario())

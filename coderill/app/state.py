@@ -48,7 +48,7 @@ class State:
     subagent_services: dict[str, SubagentService] = field(default_factory=dict)
     service_processes: dict[str, ServiceProcessManager] = field(default_factory=dict)
 
-    def rebuild(self) -> None:
+    def rebuild(self, provider=None) -> None:
         registry = build_registry(self.config.workspace, llm=self.llm, config=self.config, extra_tools=self.mcp.tools)
         registry.register(ArchiveReadTool(self.session))
         service = self.subagent_services.get(self.session.id)
@@ -85,7 +85,7 @@ class State:
             self.config,
             self.session,
             registry,
-            create_provider(self.config),
+            provider if provider is not None else create_provider(self.config),
             self.permission,
             hooks=self.hooks,
             skills=skills,
@@ -95,6 +95,18 @@ class State:
             on_event=self._on_event,
         )
         self.agent.plan_mode = self.plan_mode
+
+    def select_model(self, profile: str) -> None:
+        config = Config.from_env(self.config.workspace, overrides={"profile": profile, "benchmark": self.config.benchmark})
+        provider = create_provider(config)
+        previous_config, previous_llm = self.config, self.llm
+        self.config, self.llm = config, LLM(config)
+        try:
+            self.rebuild(provider)
+        except Exception:
+            self.config, self.llm = previous_config, previous_llm
+            raise
+        self.session.set_model(config.model)
 
     def run_async(self, coroutine):
         return self.loop.run_until_complete(coroutine)

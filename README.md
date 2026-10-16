@@ -41,6 +41,8 @@ vision = true
 
 Select a profile in the REPL with `/model claude` or in the TUI model selector. Existing commands include `/new`, `/list`, `/resume`, `/fork`, `/share`, `/where`, `/cost`, `/plan`, `/approve`, `/mode`, `/undo`, `/reasoning`, `/mcp`, and `/exit`. New commands are `/attach`, `/model`, `/background`, and `/apply`.
 
+In the TUI, Enter sends a message and Shift+Enter adds a line. Paste a file path on its own line or use `/attach path` to stage a file; F8 stages a PNG image from the system clipboard. The attachment list is shown above the composer until the turn is accepted.
+
 ## Runtime structure
 
 | Package | Responsibility |

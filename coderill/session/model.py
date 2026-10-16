@@ -280,12 +280,17 @@ class Session:
             raise ValueError("attachment must be a file under 10 MB")
         data = path.read_bytes()
         media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        return self.attach_bytes(path.name, data, media_type, max_bytes=max_bytes)
+
+    def attach_bytes(self, name: str, data: bytes, media_type: str, *, max_bytes: int = 10_000_000) -> dict:
+        if len(data) > max_bytes:
+            raise ValueError("attachment must be a file under 10 MB")
         if not (media_type.startswith(("text/", "image/"))
                 or media_type in ("application/json", "application/xml")):
             raise ValueError("only text and image attachments are supported")
         digest = self.store.put_blob(self.id, data)
         attachment = {
-            "name": path.name,
+            "name": name,
             "digest": digest,
             "media_type": media_type,
             "size": len(data),
