@@ -3,6 +3,7 @@ import re
 
 from coderill.context import AsyncContextManager, ContextBudgetExceeded
 from coderill.context.builder import _semantic_preview
+from coderill.context.pipeline import CompactionPipeline
 from coderill.session import Session, SessionStore
 
 
@@ -97,3 +98,37 @@ def test_task_boundary_without_compression_is_acknowledged_after_reload(tmp_path
     assert not Session.load(session.id, store).task_boundary_pending
     assert len([event for event in store.events(session.id)
                 if event["type"] == "task_boundary_acknowledged"]) == 1
+
+
+def test_pipeline_archives_exact_dialog_and_typed_output(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    dialog = "decision: keep this path\n" + "detail\n" * 250
+    search = "\n".join(f"src/a.py:{number}: important_match_{number}" for number in range(1, 80))
+    session.record({"role": "user", "content": dialog})
+    session.record({"role": "tool", "tool_call_id": "r", "content": search})
+    pipeline = CompactionPipeline(session, [dict(item) for item in session.messages])
+    pipeline.l1_old_dialog(1)
+    pipeline.l2_typed_outputs(2, None)
+    assert "decision: keep this path" in pipeline.messages[0]["content"]
+    assert "79 search hits" in pipeline.messages[1]["content"]
+    for source, projected in zip(session.messages, pipeline.messages):
+        digest = re.search(r"archive:([0-9a-f]{64})", projected["content"])[1]
+        assert session.read_archive(digest) == source["content"]
+
+
+def test_pipeline_checkpoint_keeps_full_original_messages(tmp_path):
+    import json
+
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    session.record({"role": "user", "content": "x" * 1500})
+    session.record({"role": "assistant", "content": "finished"})
+    pipeline = CompactionPipeline(session, [dict(item) for item in session.messages])
+    pipeline.l1_old_dialog(1)
+
+    async def summarize(note):
+        return "summary of " + note[:10]
+
+    asyncio.run(pipeline.l4_checkpoint(1, summarize))
+    digest = re.search(r"archive:([0-9a-f]{64})", pipeline.messages[0]["content"])[1]
+    assert json.loads(session.read_archive(digest)) == session.messages[:1]
+    assert pipeline.messages[-1] == session.messages[-1]

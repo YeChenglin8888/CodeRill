@@ -26,7 +26,7 @@ flowchart TD
 - `AgentRuntime.run_turn`, `resume_turn`, and `cancel_turn` drive one async model/tool loop. A request ends as complete, waiting for review, cancelled, failed, or over budget. The runtime pairs every observed tool call with a tool message before the next model request.
 - `SessionStore` writes versioned events; `project_events` reconstructs state without mutating those events; `Session` handles lifecycle and commands. New events use v2; v1 logs remain readable. A final incomplete JSONL line can be recovered; a corrupt middle line is an error. One session driver holds a process lock while a turn runs.
 - `ReviewManager` creates the review ID, original arguments, workspace target, digest, and diff. The UI submits only the ID and choice. A changed file generates a fresh review before execution. Saved grants are scoped to workspace and exact shell command or file target.
-- `AsyncContextManager` estimates the full request, including system text, tool declarations, attachments, and output reserve. It trims old tool output first, archives source text, reduces older content, then asks for a model summary. Failed or unhelpful compression stops rather than looping indefinitely.
+- `AsyncContextManager` estimates the full request, including system text, tool declarations, attachments, and output reserve. Its L1–L4 pipeline trims old dialogue, compresses old tool output by content type, archives remaining large output, and checkpoints older turns. Exact source text remains retrievable; failed or unhelpful compression stops rather than looping indefinitely.
 - The hidden task-boundary call proposes `same`, `new`, or `uncertain`; `Session.observe_task` owns the stable hash and two-observation transition. Context uses a confirmed transition as a safe old-task checkpoint boundary. A failed classification becomes `uncertain` and never blocks the user turn.
 - Old successful reads followed by successful writes to the same normalized path are marked stale in the model view. Old tool output keeps type-specific clues for JSON, diffs, errors, and search hits, with exact content in the archive. External file edits are outside this event-based detection.
 - `MCPToolSearch` searches connected tools locally. The initial request contains its schema, while remote schemas appear only after activation; `AgentRuntime` rejects a guessed inactive MCP call. Skill bodies are pinned into session assets on first drive and remain stable after restart.
@@ -97,7 +97,7 @@ The log records what CodeRill knows. It cannot guarantee that an external comman
 | Provider contract and errors | `providers/` | `tests/test_provider_contract.py` |
 | Approval refresh and replay | `agent/runtime.py`, `permissions/review.py` | `tests/test_runtime.py`, `examples/failure_demo.py` |
 | JSONL tail, locking, legacy decoding | `session/` | `tests/test_session.py` |
-| Compression and retrieval | `context/builder.py`, `tools/archive.py` | `tests/test_context_builder.py` |
+| Compression and retrieval | `context/builder.py`, `context/pipeline.py`, `tools/archive.py` | `tests/test_context_builder.py` |
 | Task boundary and budgets | `agent/runtime.py`, `session/model.py` | `tests/test_runtime.py` |
 | Skill version and MCP selection | `skills.py`, `mcp.py` | `tests/test_skills.py`, `tests/test_mcp_sdk.py` |
 | Shell timeout and cancellation | `runtime/process.py` | `tests/test_process_runtime.py` |
