@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..review import build_prewrite_review
+from ..tools.advanced import patch_targets
 from ..tools.base import Tool, resolve_path
 from .policy import GrantStore, Mode, Request, classify, default_scope
 
@@ -32,50 +33,58 @@ class ReviewManager:
             return None
         name = call["name"]
         args = call["arguments"]
-        target = self._target(name, args)
+        targets = self._targets(name, args)
+        target = targets[0] if len(targets) == 1 else None
         permission = classify(name, args, str(self.workspace)) or Request(name, "tool", "", str(self.workspace))
-        if target is not None:
+        if target is not None and permission.action == "filesystem":
             permission = Request(name, "filesystem", str(target), str(self.workspace))
         if self.store.match(permission) is not None:
             return None
         if self.mode is Mode.AGGRESSIVE and permission.action in ("filesystem", "shell"):
             return None
-        return self._build(call, target)
+        return self._build(call, targets)
 
     def refresh(self, review: dict[str, Any]) -> dict[str, Any] | None:
         """A changed file invalidates the old review and gets a fresh id and diff."""
         call = review["call"]
-        target = self._target(call["name"], call["arguments"])
-        if str(target or "") == review["target"] and self._digest(target) == review["digest"]:
+        targets = self._targets(call["name"], call["arguments"])
+        current = {str(target): self._digest(target) for target in targets}
+        saved = review.get("targets", {review["target"]: review["digest"]} if review.get("target") else {})
+        if current == saved:
             return None
-        return self._build(call, target)
+        return self._build(call, targets)
 
     def remember(self, review: dict[str, Any]) -> None:
         call = review["call"]
         permission = classify(call["name"], call["arguments"], str(self.workspace))
         if permission is None:
             return
-        if review["target"]:
+        if review["target"] and permission.action == "filesystem":
             permission = Request(call["name"], "filesystem", review["target"], str(self.workspace))
         scope = default_scope(permission)
         if scope is not None:
             self.store.add(scope)
 
-    def _build(self, call: dict[str, Any], target: Path | None) -> dict[str, Any]:
+    def _build(self, call: dict[str, Any], targets: list[Path]) -> dict[str, Any]:
+        target = targets[0] if len(targets) == 1 else None
         return {
             "id": uuid.uuid4().hex,
             "call": call,
             "target": str(target or ""),
             "digest": self._digest(target),
+            "targets": {str(item): self._digest(item) for item in targets},
             "diff": build_prewrite_review(call["name"], call["arguments"], self.workspace),
             "workspace": str(self.workspace),
         }
 
-    def _target(self, name: str, arguments: dict[str, Any]) -> Path | None:
-        if name not in ("write_file", "edit_file"):
-            return None
-        key = "path" if name == "write_file" else "file_path"
-        return resolve_path(self.workspace, str(arguments[key]))
+    def _targets(self, name: str, arguments: dict[str, Any]) -> list[Path]:
+        if name == "apply_patch":
+            return patch_targets(self.workspace, str(arguments["patch"]))
+        if name in ("write_file", "delete_path"):
+            return [resolve_path(self.workspace, str(arguments["path"]))]
+        if name == "edit_file":
+            return [resolve_path(self.workspace, str(arguments["file_path"]))]
+        return []
 
     @staticmethod
     def _digest(target: Path | None) -> str:
@@ -83,4 +92,13 @@ class ReviewManager:
             return ""
         if not target.exists():
             return "missing"
-        return hashlib.sha256(target.read_bytes()).hexdigest()
+        if target.is_file():
+            return hashlib.sha256(target.read_bytes()).hexdigest()
+        digest = hashlib.sha256()
+        for item in sorted(target.rglob("*")):
+            digest.update(item.relative_to(target).as_posix().encode())
+            if item.is_symlink():
+                digest.update(str(item.readlink()).encode())
+            elif item.is_file():
+                digest.update(item.read_bytes())
+        return digest.hexdigest()

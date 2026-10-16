@@ -111,13 +111,21 @@ def _mark_stale_reads(messages: list[dict], session: Session) -> None:
             if session.finished_calls.get(call_id, {}).get("status") != "success":
                 continue
             name, args = calls.get(call_id, ("", {}))
-            path = args.get("path") if name in ("read_file", "write_file") else args.get("file_path")
+            if name == "apply_patch":
+                for previous, indexes in list(reads.items()):
+                    for read_index in indexes:
+                        old = messages[read_index]
+                        if "[stale read:" not in old.get("content", ""):
+                            old["content"] += f"\n[stale read: a patch may have changed {previous.name}; reread before relying on this output]"
+                reads.clear()
+                continue
+            path = args.get("path") if name in ("read_file", "write_file", "delete_path") else args.get("file_path")
             if not isinstance(path, str):
                 continue
             target = (root / path).resolve()
             if name == "read_file":
                 reads.setdefault(target, []).append(index)
-            elif name in ("write_file", "edit_file"):
+            elif name in ("write_file", "edit_file", "delete_path"):
                 for read_index in reads.pop(target, []):
                     old = messages[read_index]
                     if "[stale read:" not in old.get("content", ""):

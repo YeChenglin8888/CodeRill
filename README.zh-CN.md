@@ -47,6 +47,8 @@ vision = true
 
 连续只读工具可并行，写操作按顺序执行。后台子 Agent 有独立会话和预算；可写子任务使用 Git worktree，必须通过 `/apply 子任务ID` 预览并应用改动。Git worktree 只隔离工作目录，不是操作系统安全沙箱。
 
+内置工具还支持批量读取、Git 状态／差异／历史、诊断命令、多文件补丁、删除、公开网页读取与搜索。补丁和删除在 aggressive 模式下仍须审查；网络工具拒绝本机与内网地址，也不跟随跳转。
+
 可选 MCP 通过官方 SDK 连接 stdio 和 Streamable HTTP 服务，配置文件为 `~/.coderill/mcp.json`。原有 Jev 浏览器能力仍可选用；其 DOM 读取代码的来源与许可记录见 [browser_NOTICE.txt](coderill/browser_NOTICE.txt)。
 
 ## 离线验证

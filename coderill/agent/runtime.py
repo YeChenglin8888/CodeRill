@@ -438,10 +438,14 @@ class AgentRuntime:
         self.on_event(ChatStreamEvent("tool_started", tool_call=ToolCall(**call)))
         before = self.plan.revision if self.plan is not None else None
         try:
-            if call["name"] == "bash":
+            if call["name"] in ("bash", "diagnostics"):
                 args = call["arguments"]
+                timeout = args.get("timeout", 300 if call["name"] == "diagnostics" else 120)
+                if call["name"] == "diagnostics" and (not args["command"].strip() or not 1 <= timeout <= 3600):
+                    self._record_result(call["id"], "failed", "Error: diagnostics needs a command and timeout of 1-3600 seconds")
+                    return
                 process = await self.processes.run(args["command"], self.config.workspace,
-                                                   min(args.get("timeout", 120), max(1, self._turn_deadline - time.monotonic())),
+                                                   min(timeout, max(1, self._turn_deadline - time.monotonic())),
                                                    self._cancel)
                 result = f"exit code: {process.returncode}\n{process.output}"
                 if process.status != "success":
@@ -490,7 +494,7 @@ class AgentRuntime:
             elif status == "success":
                 self._failures.clear()
                 self._blocked_calls.clear()
-                if call["name"] in ("write_file", "edit_file", "delete_file", "apply_patch"):
+                if call["name"] in ("write_file", "edit_file", "delete_path", "apply_patch") and not call["arguments"].get("dry_run"):
                     self._needs_validation = True
                 elif _is_validation(call):
                     self._needs_validation = False

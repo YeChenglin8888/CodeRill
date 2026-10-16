@@ -16,8 +16,10 @@ from ..runtime import BackgroundTaskManager
 from ..session import Session
 from ..taskplan import TaskPlan
 from ..tools import Registry
+from ..tools.advanced import ApplyPatchTool, DeletePathTool, DiagnosticsTool, ReadMultiTool
 from ..tools.archive import ArchiveReadTool
 from ..tools.files import EditFileTool, ReadFileTool, WriteFileTool
+from ..tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from ..tools.glob_tool import GlobTool
 from ..tools.grep import GrepTool
 from .runtime import AgentRuntime
@@ -52,11 +54,15 @@ class SubagentService:
             child.set_workspace(str(workspace))
         child_config = replace(self.config, workspace=workspace, max_turns=min(self.config.max_turns, 10))
         registry = Registry(workspace)
-        for tool in (ReadFileTool(workspace), GlobTool(workspace), GrepTool(workspace), ArchiveReadTool(child)):
+        for tool in (ReadFileTool(workspace), ReadMultiTool(workspace), GlobTool(workspace), GrepTool(workspace),
+                     GitStatusTool(workspace), GitDiffTool(workspace), GitLogTool(workspace), ArchiveReadTool(child)):
             registry.register(tool)
         if allow_write:
             registry.register(WriteFileTool(workspace))
             registry.register(EditFileTool(workspace))
+            registry.register(ApplyPatchTool(workspace))
+            registry.register(DeletePathTool(workspace))
+            registry.register(DiagnosticsTool(workspace))
         runtime = AgentRuntime(
             child_config, child, registry, self.provider_factory(child_config),
             ReviewManager(workspace, mode=Mode.AGGRESSIVE),

@@ -62,7 +62,7 @@ See [architecture.md](docs/architecture.md) for the request sequence, approval s
 
 ## Tools and integrations
 
-Built-in tools read, write, and edit workspace files; search by filename and content; run shell commands; manage a task plan; load skills on demand; retrieve archived output; and delegate bounded tasks. File paths are constrained to the workspace. Shell commands require review in standard mode and have timeout, cancellation, and output limits.
+Built-in tools read, batch-read, write, edit, patch, and delete workspace files; search by filename and content; inspect Git status, diffs, and history; run shell commands and diagnostics; fetch public pages and search the web; manage a task plan; load skills on demand; retrieve archived output; and delegate bounded tasks. File paths are constrained to the workspace. Patches and deletion require review even in aggressive mode. Network tools reject local or private addresses and do not follow redirects. Shell and diagnostic commands have timeout, cancellation, and output limits.
 
 Optional MCP uses the official Python SDK for stdio and Streamable HTTP servers. Server configuration is read from `~/.coderill/mcp.json`. The optional Jev browser tool needs an OpenAI-compatible model, `pip install -e ".[browser]"`, `CODERILL_BROWSER_ENABLED=1`, and `TYPESAFE_*` settings. Its DOM reader is adapted from `browser-use/jev-ultrafast`; see [the retained license notice](coderill/browser_NOTICE.txt).
 

@@ -5,10 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .advanced import ApplyPatchTool, DeletePathTool, DiagnosticsTool, ReadMultiTool
 from .base import Registry, Tool, ToolError
 from .files import EditFileTool, ReadFileTool, WriteFileTool
+from .git import GitDiffTool, GitLogTool, GitStatusTool
 from .glob_tool import GlobTool
 from .grep import GrepTool
+from .network import FetchTool, WebSearchTool
 from .shell import BashTool
 from .todo import TodoWriteTool
 
@@ -38,6 +41,9 @@ def build_registry(
     registry.register(BashTool(root))
     registry.register(GlobTool(root))
     registry.register(GrepTool(root))
+    for tool in (ReadMultiTool(root), GitStatusTool(root), GitDiffTool(root), GitLogTool(root),
+                 DiagnosticsTool(root), ApplyPatchTool(root), DeletePathTool(root), FetchTool(), WebSearchTool()):
+        registry.register(tool)
     registry.register(TodoWriteTool())
 
     if llm is not None and config is not None and config.browser_enabled and config.provider == "openai":

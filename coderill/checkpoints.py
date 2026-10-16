@@ -32,6 +32,19 @@ def seal(path: Path) -> None:
     _stack[-1] = (path, before, _digest(path))
 
 
+def record_many(paths: list[Path]) -> None:
+    for path in paths:
+        record(path)
+
+
+def seal_many(paths: list[Path]) -> None:
+    if [entry[0] for entry in _stack[-len(paths):]] != paths:
+        raise ValueError("checkpoint paths changed")
+    for index in range(len(paths)):
+        path, before, _ = _stack[index - len(paths)]
+        _stack[index - len(paths)] = (path, before, _digest(path))
+
+
 def undo() -> str:
     """Restore the most recent checkpoint, or report that there is nothing to undo."""
     if not _stack:

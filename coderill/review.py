@@ -12,6 +12,7 @@ import difflib
 from pathlib import Path
 from typing import Any
 
+from .tools.advanced import _apply_git, patch_targets
 from .tools.base import ToolError, resolve_path
 
 
@@ -22,6 +23,13 @@ def build_prewrite_review(tool_name: str, arguments: dict[str, Any], root: str |
             return _for_write(arguments, Path(root))
         if tool_name == "edit_file":
             return _for_edit(arguments, Path(root))
+        if tool_name == "delete_path":
+            return _for_delete(arguments, Path(root))
+        if tool_name == "apply_patch":
+            patch = str(arguments.get("patch", ""))
+            patch_targets(Path(root), patch)
+            _apply_git(Path(root), patch, "--check")
+            return patch[:30_000]
     except (OSError, ValueError, ToolError):
         return ""
     return ""
@@ -47,6 +55,22 @@ def _for_edit(arguments: dict[str, Any], root: Path) -> str:
         return ""
     after = before.replace(old, new, -1 if arguments.get("replace_all") else 1)
     return _diff(before, after, str(arguments.get("file_path", "")))
+
+
+def _for_delete(arguments: dict[str, Any], root: Path) -> str:
+    path = str(arguments.get("path", ""))
+    target = resolve_path(root, path)
+    if target == root.resolve() or not target.exists():
+        return ""
+    if target.is_file():
+        return _diff(target.read_text(errors="replace"), "", path)
+    if not arguments.get("recursive"):
+        return ""
+    files = [item for item in target.rglob("*") if item.is_file() and not item.is_symlink()]
+    preview = [f"Delete directory {path} ({len(files)} files):"]
+    preview.extend(_diff(item.read_text(errors="replace"), "", str(item.relative_to(root)))
+                   for item in files[:20])
+    return "\n".join(preview)[:30_000]
 
 
 def _diff(before: str, after: str, filename: str) -> str:

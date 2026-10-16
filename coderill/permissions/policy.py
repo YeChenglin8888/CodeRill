@@ -110,12 +110,18 @@ def classify(tool_name: str, arguments: dict[str, Any], workspace: str = "") -> 
     if tool_name in ("write_file", "edit_file"):
         target = arguments.get("path") or arguments.get("file_path") or ""
         return Request(tool_name, "filesystem", str(target), workspace)
-    if tool_name in ("bash", "process_start"):
+    if tool_name == "delete_path":
+        return Request(tool_name, "delete", str(arguments.get("path", "")), workspace)
+    if tool_name == "apply_patch":
+        return Request(tool_name, "patch", "", workspace)
+    if tool_name in ("bash", "diagnostics", "process_start"):
         return Request(tool_name, "shell", str(arguments.get("command", "")), workspace)
     if tool_name == "process_stop":
         return Request(tool_name, "process", str(arguments.get("process_id", "")), workspace)
-    if tool_name == "browser_task":
+    if tool_name in ("browser_task", "fetch"):
         return Request(tool_name, "network", _host(str(arguments.get("url", ""))), workspace)
+    if tool_name == "web_search":
+        return Request(tool_name, "network", "search.parallel.ai", workspace)
     if tool_name == "agent":
         return Request(tool_name, "agent", "", workspace)
     if tool_name.startswith("mcp__"):
