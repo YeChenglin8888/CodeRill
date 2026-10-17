@@ -9,7 +9,6 @@ import copy
 import json
 import threading
 import types
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from unittest import mock
 
@@ -71,12 +70,9 @@ def test_inputs_are_validated_before_launch(arguments):
     launch.assert_not_called()
 
 
-def test_configuration_and_main_thread_fail_before_launch():
+def test_configuration_fails_before_launch():
     tool = BrowserTaskTool(text_llm(), Config())
     assert json.loads(tool.execute("https://example.com", "Search"))["stop_reason"] == "config_error"
-    with ThreadPoolExecutor() as pool:
-        result = pool.submit(tool.execute, "https://example.com", "Search").result()
-    assert json.loads(result)["stop_reason"] == "unsupported_execution_context"
 
 
 def test_request_has_independent_heads_and_excludes_unavailable_operations():
@@ -213,6 +209,7 @@ def test_three_unchanged_actions_stop(fake_task):
     operations[:] = ["CLICK"]
     result = json.loads(tool.execute("http://localhost/test", "Click Go"))
     assert result["stop_reason"] == "no_progress" and browser.element.click.call_count == 3
+    assert all(call.args[0] <= 100 for call in browser.page.wait_for_timeout.call_args_list)
 
 
 @pytest.mark.parametrize("content,reason", [(' {"blocked":"Missing destination"}', "needs_input"),

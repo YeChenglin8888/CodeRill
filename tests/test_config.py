@@ -1,4 +1,11 @@
+import pytest
+
 from coderill.config import Config
+
+
+@pytest.fixture(autouse=True)
+def ignore_local_env(monkeypatch):
+    monkeypatch.setattr("coderill.config.load_dotenv", lambda: None)
 
 
 def test_config_layers_and_model_profile(monkeypatch, tmp_path):
@@ -39,3 +46,19 @@ def test_coderill_endpoint_overrides_generic_openai_endpoint(monkeypatch, tmp_pa
     monkeypatch.setenv("OPENAI_BASE_URL", "https://example.com/v1")
     config = Config.from_env(tmp_path, overrides={"provider": "openai", "model": "deepseek-flash"})
     assert config.base_url == "https://api.deepseek.com"
+
+
+@pytest.mark.parametrize("enabled", ["1", "0"])
+def test_thinking_switch_reaches_both_clients(monkeypatch, tmp_path, enabled):
+    from coderill.providers import LLM, create_provider
+    from coderill.providers.types import ChatRequest
+
+    monkeypatch.setenv("CODERILL_API_KEY", "unused")
+    monkeypatch.setenv("CODERILL_THINKING_ENABLED", enabled)
+    monkeypatch.setattr("openai.AsyncOpenAI", lambda **kwargs: object())
+    monkeypatch.setattr("coderill.providers.openai_compatible.OpenAI", lambda **kwargs: object())
+    config = Config.from_env(tmp_path, overrides={"provider": "openai", "base_url": "https://api.deepseek.com"})
+    expected = {"thinking": {"type": "enabled" if enabled == "1" else "disabled"}}
+    assert config.thinking_enabled == (enabled == "1")
+    assert create_provider(config)._params(ChatRequest(messages=()))["extra_body"] == expected
+    assert LLM(config)._base_kwargs([], None)["extra_body"] == expected

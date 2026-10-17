@@ -30,5 +30,5 @@ def create_provider(config):
     if config.provider == "anthropic":
         return AnthropicChatProvider(**options)
     if config.provider == "openai":
-        return OpenAIChatProvider(**options)
+        return OpenAIChatProvider(**options, thinking_enabled=config.thinking_enabled)
     raise ValueError(f"unknown provider '{config.provider}'")

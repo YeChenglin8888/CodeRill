@@ -40,22 +40,31 @@ def harbor_command(harbor: str, dataset: str, task: str, output: Path, env: dict
                "--agent", "examples.harbor_agent:CodeRillHarborAgent",
                "--model", f"{env['CODERILL_PROVIDER']}/{env['CODERILL_MODEL']}",
                "--n-concurrent", "1", "--n-attempts", "1", "--jobs-dir", str(output), "--yes"]
-    for name in ("CODERILL_API_KEY", "CODERILL_MODEL", "CODERILL_PROVIDER", "CODERILL_BASE_URL"):
+    for name in ("CODERILL_API_KEY", "CODERILL_MODEL", "CODERILL_PROVIDER", "CODERILL_BASE_URL",
+                 "CODERILL_THINKING_ENABLED"):
         if env.get(name):
             command.extend(["--agent-env", f"{name}=${{{name}}}"])
     return command
 
 
 def classify(result: dict) -> str:
+    exception = result.get("exception_info")
+    kind = str(exception.get("exception_type", "")) if isinstance(exception, dict) else ""
+    if "timeout" in kind.lower():
+        return "timeout"
+    if exception:
+        if "agent" in kind.lower():
+            return "agent_execution" if result.get("agent_execution") else "agent_setup"
+        for phase in ("verifier", "agent_execution", "agent_setup", "environment_setup"):
+            value = result.get(phase)
+            if isinstance(value, dict) and value.get("started_at"):
+                return phase
+        return "environment_setup"
     verifier = result.get("verifier_result")
     rewards = verifier.get("rewards") if isinstance(verifier, dict) else None
     reward = rewards.get("reward") if isinstance(rewards, dict) else None
     if isinstance(reward, (int, float)) and not isinstance(reward, bool):
         return "passed" if reward > 0 else "reward_zero"
-    exception = result.get("exception_info")
-    kind = str(exception.get("exception_type", "")) if isinstance(exception, dict) else ""
-    if "timeout" in kind.lower():
-        return "timeout"
     for phase in ("environment_setup", "agent_setup", "agent_execution", "verifier"):
         value = result.get(phase)
         if not isinstance(value, dict) or not value.get("finished_at"):
@@ -66,12 +75,12 @@ def classify(result: dict) -> str:
 def summarize(run_dir: Path) -> dict:
     trials = []
     for path in sorted(run_dir.rglob("result.json")):
-        if path.parent.parent.name != "trials":
-            continue
         result = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(result, dict):
             raise TypeError(f"expected object in {path}")
-        trials.append({"trial": path.parent.name, "outcome": classify(result)})
+        if path.parent.parent.name != "trials" and "trial_name" not in result:
+            continue
+        trials.append({"trial": result.get("trial_name", path.parent.name), "outcome": classify(result)})
     counts = dict(Counter(item["outcome"] for item in trials))
     return {"run_dir": str(run_dir), "total": len(trials), "explicit_rewards":
             counts.get("passed", 0) + counts.get("reward_zero", 0), "outcomes": counts, "trials": trials}
@@ -101,8 +110,10 @@ def main(argv: list[str] | None = None) -> int:
     env["PYTHONPATH"] = os.pathsep.join(filter(None, (str(root), env.get("PYTHONPATH", ""))))
     result = subprocess.run(harbor_command(args.harbor, args.dataset, args.task, args.output, env),
                             cwd=root, env=env, check=False)
-    print(json.dumps(summarize(args.output), ensure_ascii=False, indent=2))
-    return result.returncode
+    report = summarize(args.output)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return result.returncode or int(any(outcome not in {"passed", "reward_zero"} for outcome in report["outcomes"])
+                                    or not report["total"])
 
 
 if __name__ == "__main__":

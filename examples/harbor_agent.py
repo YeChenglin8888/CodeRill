@@ -17,7 +17,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 REMOTE_SOURCE = "/installed-agent/coderill-src"
-REMOTE_VENV = "/opt/coderill/.venv"
+REMOTE_PACKAGES = "/opt/coderill/packages"
 
 
 class CodeRillHarborAgent(BaseInstalledAgent):
@@ -30,7 +30,7 @@ class CodeRillHarborAgent(BaseInstalledAgent):
         return "coderill"
 
     def get_version_command(self) -> str | None:
-        return f"{REMOTE_VENV}/bin/python -m coderill --version"
+        return f"PYTHONPATH={REMOTE_PACKAGES} python3 -m coderill --version"
 
     async def install(self, environment: BaseEnvironment) -> None:
         required = (self.source_dir / "pyproject.toml", self.source_dir / "README.md",
@@ -44,18 +44,18 @@ class CodeRillHarborAgent(BaseInstalledAgent):
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".env", ".env.*"))
         user = shlex.quote(str(environment.default_user or "root"))
         await self.exec_as_root(environment, command=(
-            f"mkdir -p {REMOTE_SOURCE} /opt/coderill && chown -R {user} /opt/coderill {REMOTE_SOURCE}"
+            f"mkdir -p {REMOTE_SOURCE} {REMOTE_PACKAGES} && chown -R {user} /opt/coderill {REMOTE_SOURCE}"
         ))
         await environment.upload_dir(staged, REMOTE_SOURCE)
         await self.exec_as_root(environment, command=f"chown -R {user} {REMOTE_SOURCE}")
         await self.exec_as_agent(environment, command=(
-            f"python3 -m venv {REMOTE_VENV} && {REMOTE_VENV}/bin/python -m pip install {REMOTE_SOURCE}"
+            f"python3 -m pip install --target {REMOTE_PACKAGES} {REMOTE_SOURCE}"
         ))
 
     @with_prompt_template
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         del context
         await self.exec_as_agent(environment, command=(
-            f"{REMOTE_VENV}/bin/python -m coderill --cwd . --auto-approve --benchmark "
+            f"PYTHONPATH={REMOTE_PACKAGES} python3 -m coderill --cwd . --auto-approve --benchmark "
             f"--message={shlex.quote(instruction)}"
         ))

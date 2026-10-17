@@ -28,11 +28,13 @@ class OpenAIChatProvider:
         base_url: str | None = None,
         name: str = "openai",
         vision: bool = False,
+        thinking_enabled: bool = True,
         attempts: int = 3,
         client: Any = None,
     ) -> None:
         self.name = name
         self.model = model
+        self.thinking_enabled = thinking_enabled
         self.deepseek = urlsplit(base_url).hostname == "api.deepseek.com" if base_url else False
         self.capabilities = ProviderCapabilities(vision=vision)
         self.attempts = attempts
@@ -45,7 +47,7 @@ class OpenAIChatProvider:
     def _params(self, request: ChatRequest) -> dict[str, Any]:
         params: dict[str, Any] = {
             "model": self.model,
-            "messages": openai_messages(request, include_reasoning=self.deepseek),
+            "messages": openai_messages(request, include_reasoning=self.deepseek and self.thinking_enabled),
             "max_tokens": request.max_tokens,
         }
         if request.temperature is not None:
@@ -57,7 +59,7 @@ class OpenAIChatProvider:
             ]
             params["tool_choice"] = "auto"
         if self.deepseek:
-            params["extra_body"] = {"thinking": {"type": "enabled"}}
+            params["extra_body"] = {"thinking": {"type": "enabled" if self.thinking_enabled else "disabled"}}
         return params
 
     async def complete(self, request: ChatRequest) -> ChatResponse:

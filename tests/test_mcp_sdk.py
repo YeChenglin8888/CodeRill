@@ -2,6 +2,10 @@
 
 import asyncio
 import json
+import socket
+import subprocess
+import sys
+import time
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
@@ -109,3 +113,89 @@ def test_stdio_and_http_tool_discovery(monkeypatch, tmp_path):
 
     asyncio.run(scenario())
     assert len(opened) == 2
+
+
+def test_real_stdio_and_http_log_servers_can_disconnect_independently(tmp_path):
+    pytest.importorskip("mcp.server.fastmcp")
+    server = tmp_path / "log_server.py"
+    log = tmp_path / "backend.log"
+    log.write_text("backend started\n", encoding="utf-8")
+    server.write_text('''import sys
+from pathlib import Path
+from mcp.server.fastmcp import FastMCP
+log = Path(sys.argv[2])
+app = FastMCP("backend-logs", host="127.0.0.1", port=int(sys.argv[3]), stateless_http=True)
+@app.tool()
+def read_log() -> str:
+    return log.read_text(encoding="utf-8")
+@app.tool()
+def append_log(entry: str) -> str:
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write(entry + "\\n")
+    return "appended"
+app.run("streamable-http" if sys.argv[1] == "http" else "stdio")
+''', encoding="utf-8")
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    config = tmp_path / "mcp.json"
+    config.write_text(json.dumps({"mcpServers": {
+        "broken": {"command": str(tmp_path / "missing-server")},
+        "stdio": {"command": sys.executable, "args": [str(server), "stdio", str(log), str(port)]},
+        "http": {"url": f"http://127.0.0.1:{port}/mcp"},
+    }}), encoding="utf-8")
+    process = subprocess.Popen([sys.executable, str(server), "http", str(log), str(port)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(100):
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                    break
+            except OSError:
+                time.sleep(0.1)
+        else:
+            pytest.fail("HTTP MCP server did not start")
+
+        async def scenario():
+            from coderill.agent.runtime import AgentRuntime
+            from coderill.config import Config
+            from coderill.permissions import GrantStore, Mode, ReviewManager
+            from coderill.providers.types import ChatResponse, ChatStreamEvent, ToolCall
+            from coderill.session import Session, SessionStore
+            from coderill.tools import build_registry
+
+            manager = MCPManager(config)
+            try:
+                tools = {tool.name: tool for tool in await manager.connect()}
+                assert set(manager.errors) == {"broken"} and len(tools) == 4
+                assert "backend started" in await tools["mcp__stdio__read_log"].aexecute()
+                assert await tools["mcp__http__append_log"].aexecute(entry="request complete") == "appended"
+
+                class Provider:
+                    def __init__(self):
+                        self.responses = [
+                            ChatResponse("", (ToolCall("search", "mcp_tool_search", {"query": "read_log"}),)),
+                            ChatResponse("", (ToolCall("read", "mcp__http__read_log", {}),)),
+                            ChatResponse("done"),
+                        ]
+
+                    async def stream(self, _request):
+                        yield ChatStreamEvent("completed", response=self.responses.pop(0))
+
+                session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+                runtime = AgentRuntime(Config(api_key="unused", workspace=tmp_path), session,
+                                       build_registry(tmp_path), Provider(),
+                                       ReviewManager(tmp_path, mode=Mode.BYPASS,
+                                                     store=GrantStore(tmp_path / "grants.json")), mcp=manager)
+                assert (await runtime.run_turn("Read the backend log")).status == "complete"
+                assert "request complete" in session.finished_calls["read"]["content"]
+                await manager.disconnect("stdio")
+                assert "request complete" in await tools["mcp__http__read_log"].aexecute()
+                assert {tool.server for tool in manager.tools} == {"http"}
+            finally:
+                await manager.close()
+
+        asyncio.run(scenario())
+    finally:
+        process.terminate()
+        process.wait(timeout=5)

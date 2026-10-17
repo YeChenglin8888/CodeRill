@@ -337,8 +337,6 @@ def run_task(url, goal, max_steps, timeout_seconds, llm, config):
     snapshot, browser = None, None
     try:
         validate_inputs(url, goal, max_steps, timeout_seconds)
-        if threading.current_thread() is not threading.main_thread():
-            raise TaskStopped("unsupported_execution_context", "Browser tasks require the main thread")
         if config.browser_channel not in {"msedge", "chrome"}:
             raise TaskStopped("config_error", "CODERILL_BROWSER_CHANNEL must be msedge or chrome")
         if not config.typesafe_api_key.strip() or not config.typesafe_model.strip():
@@ -418,7 +416,7 @@ def run_task(url, goal, max_steps, timeout_seconds, llm, config):
                                 handle.dispose()
                     browser.check()
                     if operation != "WAIT":
-                        browser.page.wait_for_timeout(remaining_time(deadline, 0.1) * 1000)
+                        browser.page.wait_for_timeout(min(remaining_time(deadline, 0.1) * 1000, 100))
                     snapshot = browser.observe()
                     changed = before != _progress(snapshot)
                     if changed:

@@ -59,6 +59,8 @@ def test_harbor_adapter_stages_only_package_and_quotes_instruction(tmp_path, mon
     environment = Environment()
     asyncio.run(agent.install(environment))
     asyncio.run(agent.run("-fix 'quoted' path", environment, None))
-    assert any("pip install /installed-agent/coderill-src" in command for _, command in commands)
+    assert any("pip install --target /opt/coderill/packages /installed-agent/coderill-src" in command
+               for _, command in commands)
+    assert "PYTHONPATH=/opt/coderill/packages python3 -m coderill" in commands[-1][1]
     assert "--message='-fix '\"'\"'quoted'\"'\"' path'" in commands[-1][1]
     assert agent.name() == "coderill"

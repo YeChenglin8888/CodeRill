@@ -25,6 +25,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from openai import (
     APIConnectionError,
@@ -245,6 +246,8 @@ class LLM:
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
+        if self.config.base_url and urlsplit(self.config.base_url).hostname == "api.deepseek.com":
+            kwargs["extra_body"] = {"thinking": {"type": "enabled" if self.config.thinking_enabled else "disabled"}}
         return kwargs
 
     def _to_response(self, completion) -> Response:

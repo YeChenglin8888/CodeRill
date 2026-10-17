@@ -36,6 +36,7 @@ class Config:
     model: str = DEFAULT_MODEL
     base_url: str | None = None
     vision: bool = False
+    thinking_enabled: bool = True
     profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
     max_tokens: int = 4096
     temperature: float = 0.0
@@ -80,6 +81,7 @@ class Config:
                 values["api_key"] = os.getenv(str(profile["api_key_env"]), "")
         env_values: dict[str, tuple[str, Any]] = {
             "provider": ("CODERILL_PROVIDER", str),
+            "thinking_enabled": ("CODERILL_THINKING_ENABLED", lambda value: value == "1"),
             "model": ("CODERILL_MODEL", str),
             "base_url": ("CODERILL_BASE_URL", str),
             "max_tokens": ("CODERILL_MAX_TOKENS", int),

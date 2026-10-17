@@ -7,6 +7,7 @@ CODERILL_BROWSER_TEST=1 once Playwright browsers are installed.
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -132,6 +133,14 @@ def test_complete_task_and_independent_page_result(monkeypatch, local_site, real
     assert real_browser[-1].page.is_closed()
     context = json.loads(llm.chat.call_args.kwargs["messages"][1]["content"])
     assert context["user_goal"] == "Search cats in Tokyo and show results" and llm.chat.call_args.kwargs["tools"] is None
+
+
+def test_browser_task_runs_in_agent_worker_thread(monkeypatch, local_site, real_browser):
+    install_policy(monkeypatch, lambda _: ("DONE", None))
+    tool = BrowserTaskTool(text_llm(), Config(typesafe_api_key="fake-jev"))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        result = json.loads(pool.submit(tool.execute, local_site, "Read the page").result())
+    assert result["stop_reason"] == "model_done" and "Ready" in result["visible_text"]
 
 
 def test_real_node_guards_cover_replacement_options_and_occlusion(local_site, real_browser):

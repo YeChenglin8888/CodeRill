@@ -17,10 +17,10 @@ Run `python scripts/code_stats.py` to reproduce source counts. The counter inclu
 
 ## Verification boundary
 
-The latest local Windows run has **202 passed, 6 skipped** and Ruff passed. Six real-browser tests are skipped unless explicitly enabled. Linux CI is configured but has not run locally. Provider adapters use fake SDK clients in core tests; no live model API, MCP server, Harbor job, or browser session was exercised for this checkpoint. `examples/benchmark_suite.py` can run a fixed manifest with isolated workspace copies and explicit verifier commands; no public success rate has been produced. Python, CLI and TUI callers use `AgentRuntime`; the old synchronous `Agent` API was removed.
+The latest local Windows run has **215 passed** with real-browser and MCP transport tests enabled, and Ruff passed. Linux CI is configured but has not run locally. A real DeepSeek model completed a read-only CLI task and an isolated file-repair task with a passing verifier. A local text-only Harbor smoke task earned reward 1/1 after the adapter was installed in Docker. The Terminal-Bench chess task reached agent execution but exhausted the request budget because the configured model could not inspect its PNG input; it earned no reward. Real stdio and Streamable HTTP MCP servers, plus a third-party filesystem server, were exercised with temporary configuration. `examples/benchmark_suite.py` uses isolated workspace copies and explicit verifier commands; no public success rate has been produced. Python, CLI and TUI callers use `AgentRuntime`; the old synchronous `Agent` API was removed.
 
 ## Remaining gaps against the original plan
 
 - The context pipeline has content-specific offline tests but no measured compression-quality benchmark. External file changes are not automatically marked as stale reads.
-- Harbor preflight and result classification have offline tests. The actual Harbor job is reserved for a later session; no CodeRill reward has been produced.
+- Harbor preflight and result classification have offline tests. The local Harbor smoke task passed; the image-based Terminal-Bench chess task remains unsuitable for the configured text-only model.
 - Long-running process logs survive restart; a detached process is deliberately not stoppable through an old PID. No OS sandbox or exactly-once external side effect guarantee exists.

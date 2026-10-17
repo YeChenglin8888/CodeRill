@@ -93,11 +93,13 @@ def test_openai_stream_reassembles_partial_tool_call():
     assert events[-1].response.tool_calls == (ToolCall("c1", "read_file", {"path": "a.py"}),)
 
 
-def test_deepseek_replays_thinking_for_tool_calls():
+@pytest.mark.parametrize("thinking_enabled", [True, False])
+def test_deepseek_replays_thinking_for_tool_calls(thinking_enabled):
     endpoint = Endpoint({"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]})
     client = SimpleNamespace(chat=SimpleNamespace(completions=endpoint))
     provider = OpenAIChatProvider(model="deepseek-flash", api_key="unused",
-                                  base_url="https://api.deepseek.com", client=client)
+                                  base_url="https://api.deepseek.com", client=client,
+                                  thinking_enabled=thinking_enabled)
     history = ChatRequest(messages=(
         ChatMessage("user", "read it"),
         ChatMessage("assistant", tool_calls=(ToolCall("c1", "read_file", {"path": "a.py"}),),
@@ -105,8 +107,11 @@ def test_deepseek_replays_thinking_for_tool_calls():
         ChatMessage("tool", "file content", tool_call_id="c1"),
     ), tools=request().tools)
     asyncio.run(provider.complete(history))
-    assert endpoint.params["extra_body"] == {"thinking": {"type": "enabled"}}
-    assert endpoint.params["messages"][1]["reasoning_content"] == "I should read the file"
+    assert endpoint.params["extra_body"] == {"thinking": {"type": "enabled" if thinking_enabled else "disabled"}}
+    if thinking_enabled:
+        assert endpoint.params["messages"][1]["reasoning_content"] == "I should read the file"
+    else:
+        assert "reasoning_content" not in endpoint.params["messages"][1]
     generic = OpenAIChatProvider(model="test", api_key="unused", client=client)._params(history)
     assert "extra_body" not in generic
     assert "reasoning_content" not in generic["messages"][1]

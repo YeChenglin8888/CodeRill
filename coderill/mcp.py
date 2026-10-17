@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from contextlib import AsyncExitStack
@@ -64,7 +65,7 @@ class MCPManager:
         self.path = Path(path)
         self.tools: list[MCPTool] = []
         self.sessions: dict[str, Any] = {}
-        self._connections: dict[str, AsyncExitStack] = {}
+        self._connections: dict[str, tuple[asyncio.Task[None], asyncio.Event]] = {}
         self.errors: dict[str, str] = {}
 
     async def connect(self) -> list[MCPTool]:
@@ -86,24 +87,40 @@ class MCPManager:
         from mcp.client.stdio import stdio_client
         from mcp.client.streamable_http import streamable_http_client
 
-        stack = AsyncExitStack()
+        ready: asyncio.Future[tuple[Any, list[Any]]] = asyncio.get_running_loop().create_future()
+        stop = asyncio.Event()
+
+        async def serve() -> None:
+            try:
+                async with AsyncExitStack() as stack:
+                    if "url" in spec:
+                        streams = await stack.enter_async_context(streamable_http_client(spec["url"]))
+                    else:
+                        params = StdioServerParameters(
+                            command=spec["command"], args=spec.get("args", []), env=spec.get("env"),
+                        )
+                        streams = await stack.enter_async_context(stdio_client(params))
+                    session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
+                    await session.initialize()
+                    discovered = await session.list_tools()
+                    ready.set_result((session, discovered.tools))
+                    await stop.wait()
+            except BaseException as exc:
+                if not ready.done():
+                    ready.set_exception(exc)
+                else:
+                    raise
+
+        task = asyncio.create_task(serve())
         try:
-            if "url" in spec:
-                streams = await stack.enter_async_context(streamable_http_client(spec["url"]))
-            else:
-                params = StdioServerParameters(
-                    command=spec["command"], args=spec.get("args", []), env=spec.get("env"),
-                )
-                streams = await stack.enter_async_context(stdio_client(params))
-            session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
-            await session.initialize()
-            discovered = await session.list_tools()
-            self.sessions[name] = session
-            self._connections[name] = stack
-            self.tools.extend(MCPTool(self, name, tool) for tool in discovered.tools)
+            session, specs = await ready
         except BaseException:
-            await stack.aclose()
+            stop.set()
+            await asyncio.gather(task, return_exceptions=True)
             raise
+        self.sessions[name] = session
+        self._connections[name] = (task, stop)
+        self.tools.extend(MCPTool(self, name, tool) for tool in specs)
 
     async def call_tool(self, server: str, name: str, arguments: dict[str, Any]) -> str:
         session = self.sessions.get(server)
@@ -126,9 +143,13 @@ class MCPManager:
     async def disconnect(self, server: str) -> None:
         self.sessions.pop(server, None)
         self.tools = [tool for tool in self.tools if tool.server != server]
-        stack = self._connections.pop(server, None)
-        if stack is not None:
-            await stack.aclose()
+        connection = self._connections.pop(server, None)
+        if connection is not None:
+            task, stop = connection
+            stop.set()
+            result = (await asyncio.gather(task, return_exceptions=True))[0]
+            if isinstance(result, BaseException):
+                self.errors[server] = str(result)
 
     async def close(self) -> None:
         for server in list(self.sessions):
