@@ -45,7 +45,7 @@ class OpenAIChatProvider:
     def _params(self, request: ChatRequest) -> dict[str, Any]:
         params: dict[str, Any] = {
             "model": self.model,
-            "messages": openai_messages(request),
+            "messages": openai_messages(request, include_reasoning=self.deepseek),
             "max_tokens": request.max_tokens,
         }
         if request.temperature is not None:
@@ -57,7 +57,7 @@ class OpenAIChatProvider:
             ]
             params["tool_choice"] = "auto"
         if self.deepseek:
-            params["extra_body"] = {"thinking": {"type": "disabled"}}
+            params["extra_body"] = {"thinking": {"type": "enabled"}}
         return params
 
     async def complete(self, request: ChatRequest) -> ChatResponse:

@@ -25,7 +25,7 @@ Run `python -m examples.benchmark_suite tasks.json --output run.json` after conf
 
 Install Harbor in a separate Python 3.12+ evaluation environment, as described by the [official Harbor quickstart](https://github.com/harbor-framework/docs/blob/main/quickstart.mdx). The task image must have Python 3.10+ with `venv` and `pip`; this adapter does not install an interpreter. Set `CODERILL_API_KEY`, `CODERILL_MODEL`, `CODERILL_PROVIDER` (`openai` or `anthropic`), and optional `CODERILL_BASE_URL` in the host environment. The runner passes variable references to Harbor, never the key value in command arguments.
 
-For the official DeepSeek API, set `CODERILL_PROVIDER=openai`, `CODERILL_MODEL=deepseek-flash` (or `deepseek-v4-pro`), and `CODERILL_BASE_URL=https://api.deepseek.com`. CodeRill sends DeepSeek requests in non-thinking mode so tool-call history does not require reasoning-content replay.
+For the official DeepSeek API, set `CODERILL_PROVIDER=openai`, `CODERILL_MODEL=deepseek-flash` (or `deepseek-v4-pro`), and `CODERILL_BASE_URL=https://api.deepseek.com`. CodeRill enables thinking mode and persists each assistant response's `reasoning_content` so subsequent tool requests can replay it. Start a new session when switching an earlier non-thinking DeepSeek conversation to this behavior.
 
 Run the preflight first, then one task in the later evaluation session:
 

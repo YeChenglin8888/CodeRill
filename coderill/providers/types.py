@@ -49,6 +49,7 @@ class ChatMessage:
     parts: tuple[ContentPart, ...] = ()
     tool_calls: tuple[ToolCall, ...] = ()
     tool_call_id: str = ""
+    reasoning: str = ""
 
 
 @dataclass(frozen=True)

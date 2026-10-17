@@ -573,6 +573,8 @@ def _is_validation(call: dict[str, Any]) -> bool:
 
 def _assistant_message(response: ChatResponse) -> dict[str, Any]:
     message: dict[str, Any] = {"role": "assistant", "content": response.content}
+    if response.reasoning:
+        message["reasoning"] = response.reasoning
     if response.tool_calls:
         message["tool_calls"] = [
             {"id": call.id, "type": "function", "function": {
@@ -605,5 +607,5 @@ def _chat_message(raw: dict[str, Any], session: Session) -> ChatMessage:
             parts.append(ContentPart("text", text=f"[File: {attachment['name']}]\n{data.decode('utf-8', errors='replace')}"))
     return ChatMessage(
         raw["role"], raw.get("content") or "", parts=tuple(parts),
-        tool_calls=calls, tool_call_id=raw.get("tool_call_id", ""),
+        tool_calls=calls, tool_call_id=raw.get("tool_call_id", ""), reasoning=raw.get("reasoning", ""),
     )

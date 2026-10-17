@@ -21,7 +21,7 @@ def parse_arguments(raw: str | dict[str, Any] | None) -> dict[str, Any] | str:
     return value if isinstance(value, dict) else str(raw)
 
 
-def openai_messages(request: ChatRequest) -> list[dict[str, Any]]:
+def openai_messages(request: ChatRequest, *, include_reasoning: bool = False) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     for message in request.messages:
         item: dict[str, Any] = {"role": message.role, "content": _openai_content(message)}
@@ -36,6 +36,8 @@ def openai_messages(request: ChatRequest) -> list[dict[str, Any]]:
                 }
                 for call in message.tool_calls
             ]
+        if include_reasoning and message.role == "assistant" and message.reasoning:
+            item["reasoning_content"] = message.reasoning
         messages.append(item)
     return messages
 

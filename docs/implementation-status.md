@@ -1,6 +1,6 @@
 # Implementation status
 
-Run `python scripts/code_stats.py` to reproduce source counts. The counter includes `.py` files under `coderill/` and `tests/`; effective lines exclude blank lines, comments, and docstrings. At this checkpoint, production code has **6,767 physical lines** and **5,471 effective lines** across 65 files; tests have **2,984 physical lines** and **2,334 effective lines** across 31 files. Examples, scripts, and documentation are excluded. No duplicate implementation was added to meet a line target.
+Run `python scripts/code_stats.py` to reproduce source counts. The counter includes `.py` files under `coderill/` and `tests/`; effective lines exclude blank lines, comments, and docstrings. At this checkpoint, production code has **6,776 physical lines** and **5,480 effective lines** across 65 files; tests have **3,037 physical lines** and **2,379 effective lines** across 31 files. Examples, scripts, and documentation are excluded. No duplicate implementation was added to meet a line target.
 
 ## Delivered by stage
 
@@ -17,7 +17,7 @@ Run `python scripts/code_stats.py` to reproduce source counts. The counter inclu
 
 ## Verification boundary
 
-The latest local Windows run has **198 passed, 6 skipped** and Ruff passed. Six real-browser tests are skipped unless explicitly enabled. Linux CI is configured but has not run locally. Provider adapters use fake SDK clients in core tests; no live model API, MCP server, Harbor job, or browser session was exercised for this checkpoint. `examples/benchmark_suite.py` can run a fixed manifest with isolated workspace copies and explicit verifier commands; no public success rate has been produced. Python, CLI and TUI callers use `AgentRuntime`; the old synchronous `Agent` API was removed.
+The latest local Windows run has **202 passed, 6 skipped** and Ruff passed. Six real-browser tests are skipped unless explicitly enabled. Linux CI is configured but has not run locally. Provider adapters use fake SDK clients in core tests; no live model API, MCP server, Harbor job, or browser session was exercised for this checkpoint. `examples/benchmark_suite.py` can run a fixed manifest with isolated workspace copies and explicit verifier commands; no public success rate has been produced. Python, CLI and TUI callers use `AgentRuntime`; the old synchronous `Agent` API was removed.
 
 ## Remaining gaps against the original plan
 

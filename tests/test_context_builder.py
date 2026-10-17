@@ -12,6 +12,14 @@ class FailingSummaryProvider:
         raise RuntimeError("summary service failed")
 
 
+def test_old_dialog_trim_keeps_reasoning_with_its_assistant_message(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    session.record({"role": "assistant", "content": "answer " * 300, "reasoning": "reason " * 300})
+    pipeline = CompactionPipeline(session, [dict(item) for item in session.messages])
+    pipeline.l1_old_dialog(1)
+    assert pipeline.messages[0] == session.messages[0]
+
+
 def test_compression_keeps_original_retrievable_and_tool_pairs(tmp_path):
     store = SessionStore(tmp_path)
     session = Session.new("fake", str(tmp_path), store)

@@ -51,6 +51,23 @@ def test_benchmark_requires_validation_after_write(tmp_path):
     assert "Run a relevant test" in [m["content"] for m in session.messages if m["role"] == "user"][-1]
 
 
+def test_reasoning_survives_tool_round_and_session_replay(tmp_path):
+    store = SessionStore(tmp_path / "sessions")
+    session = Session.new("fake", str(tmp_path), store)
+    provider = Provider(
+        ChatResponse("", (ToolCall("c1", "read_file", {"path": "missing.txt"}),), reasoning="Inspect the file"),
+        ChatResponse("done", reasoning="The file is absent"),
+    )
+    result = asyncio.run(runtime(tmp_path, session, provider, Mode.BYPASS).run_turn("Check a file"))
+    assert result.status == "complete"
+    assistant = [message for message in provider.requests[1].messages if message.role == "assistant"]
+    assert assistant[0].reasoning == "Inspect the file"
+    restored = Session.load(session.id, store)
+    assert [message["reasoning"] for message in restored.messages if message.get("reasoning")] == [
+        "Inspect the file", "The file is absent",
+    ]
+
+
 def test_benchmark_blocks_fourth_identical_failure(tmp_path):
     session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
     bad = lambda call_id: ChatResponse("", (ToolCall(call_id, "read_file", {"path": "missing.txt"}),))

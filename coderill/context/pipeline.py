@@ -16,7 +16,7 @@ class CompactionPipeline:
 
     def l1_old_dialog(self, cutoff: int) -> None:
         for message in self.messages[:cutoff]:
-            if message.get("role") not in ("user", "assistant") or message.get("tool_calls"):
+            if message.get("role") not in ("user", "assistant") or message.get("tool_calls") or message.get("reasoning"):
                 continue
             content = message.get("content") or ""
             if len(content) > 1200:
