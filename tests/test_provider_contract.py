@@ -92,6 +92,16 @@ def test_openai_stream_reassembles_partial_tool_call():
     assert events[-1].response.tool_calls == (ToolCall("c1", "read_file", {"path": "a.py"}),)
 
 
+def test_deepseek_disables_default_thinking_for_tool_replay():
+    endpoint = Endpoint({"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]})
+    client = SimpleNamespace(chat=SimpleNamespace(completions=endpoint))
+    provider = OpenAIChatProvider(model="deepseek-flash", api_key="unused",
+                                  base_url="https://api.deepseek.com", client=client)
+    asyncio.run(provider.complete(request()))
+    assert endpoint.params["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert "extra_body" not in OpenAIChatProvider(model="test", api_key="unused", client=client)._params(request())
+
+
 def test_anthropic_message_conversion_pairs_tool_result():
     from coderill.providers.wire import anthropic_messages
 

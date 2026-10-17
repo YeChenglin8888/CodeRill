@@ -102,7 +102,7 @@ class Config:
         if provider not in ("openai", "anthropic"):
             raise ValueError(f"unknown provider '{provider}'")
         if provider == "openai" and "base_url" not in (overrides or {}):
-            values["base_url"] = os.getenv("OPENAI_BASE_URL") or values.get("base_url")
+            values["base_url"] = os.getenv("CODERILL_BASE_URL") or os.getenv("OPENAI_BASE_URL") or values.get("base_url")
         if not values.get("api_key"):
             names = ("CODERILL_API_KEY", "ANTHROPIC_API_KEY") if provider == "anthropic" else (
                 "CODERILL_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"

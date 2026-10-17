@@ -218,7 +218,7 @@ class CodeRillApp(App):
             self.query_one("#history", RichLog)
         except (NoMatches, ScreenStackError):
             return
-        if self.active_task is not None or event.value is Select.BLANK:
+        if self.active_task is not None or event.value is Select.BLANK or event.value != event.select.value:
             return
         if event.select.id == "sessions" and event.value != self.state.session.id:
             self.state.session = Session.load(str(event.value), self.state.session.store)

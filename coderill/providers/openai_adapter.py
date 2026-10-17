@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
+from urllib.parse import urlsplit
 
 from .errors import classify_error
 from .retry import retry_async
@@ -32,6 +33,7 @@ class OpenAIChatProvider:
     ) -> None:
         self.name = name
         self.model = model
+        self.deepseek = urlsplit(base_url).hostname == "api.deepseek.com" if base_url else False
         self.capabilities = ProviderCapabilities(vision=vision)
         self.attempts = attempts
         if client is None:
@@ -54,6 +56,8 @@ class OpenAIChatProvider:
                 for t in request.tools
             ]
             params["tool_choice"] = "auto"
+        if self.deepseek:
+            params["extra_body"] = {"thinking": {"type": "disabled"}}
         return params
 
     async def complete(self, request: ChatRequest) -> ChatResponse:

@@ -31,3 +31,11 @@ def test_missing_provider_key_is_explicit(monkeypatch, tmp_path):
         assert "anthropic" in str(exc)
     else:
         raise AssertionError("missing key was accepted")
+
+
+def test_coderill_endpoint_overrides_generic_openai_endpoint(monkeypatch, tmp_path):
+    monkeypatch.setenv("CODERILL_API_KEY", "unused")
+    monkeypatch.setenv("CODERILL_BASE_URL", "https://api.deepseek.com")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.com/v1")
+    config = Config.from_env(tmp_path, overrides={"provider": "openai", "model": "deepseek-flash"})
+    assert config.base_url == "https://api.deepseek.com"
