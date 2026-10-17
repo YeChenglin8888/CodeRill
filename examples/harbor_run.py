@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import shutil
@@ -20,8 +19,7 @@ def preflight(root: Path, harbor: str, env: dict[str, str]) -> list[dict[str, st
 
     add("source", all((root / name).exists() for name in ("coderill", "pyproject.toml", "examples/harbor_agent.py")),
         "CodeRill package and adapter")
-    add("harbor", bool(shutil.which(harbor) or Path(harbor).is_file()) and importlib.util.find_spec("harbor") is not None,
-        "Harbor CLI and Python package")
+    add("harbor", bool(shutil.which(harbor) or Path(harbor).is_file()), "Harbor CLI")
     try:
         docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
                                 capture_output=True, text=True, timeout=10, check=False)
@@ -65,7 +63,9 @@ def classify(result: dict) -> str:
 
 def summarize(run_dir: Path) -> dict:
     trials = []
-    for path in sorted(run_dir.glob("*/result.json")):
+    for path in sorted(run_dir.rglob("result.json")):
+        if path.parent.parent.name != "trials":
+            continue
         result = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(result, dict):
             raise TypeError(f"expected object in {path}")

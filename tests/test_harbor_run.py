@@ -14,7 +14,6 @@ def test_harbor_command_keeps_secret_out_of_arguments(tmp_path):
 
 def test_preflight_rejects_missing_daemon_and_credentials(tmp_path, monkeypatch):
     monkeypatch.setattr("examples.harbor_run.shutil.which", lambda _: None)
-    monkeypatch.setattr("examples.harbor_run.importlib.util.find_spec", lambda _: None)
     monkeypatch.setattr("examples.harbor_run.subprocess.run", lambda *args, **kwargs: (_ for _ in ()).throw(OSError()))
     checks = preflight(tmp_path, "harbor", {})
     assert not all(item["ok"] for item in checks)
@@ -31,9 +30,10 @@ def test_harbor_report_separates_reward_and_infrastructure(tmp_path):
                     ("environment_setup", "agent_setup", "agent_execution", "verifier")},
     }
     for name, result in cases.items():
-        folder = tmp_path / name
-        folder.mkdir()
+        folder = tmp_path / "job" / "trials" / name
+        folder.mkdir(parents=True)
         (folder / "result.json").write_text(json.dumps(result), encoding="utf-8")
+    (tmp_path / "job" / "result.json").write_text(json.dumps({"summary": "job"}), encoding="utf-8")
     report = summarize(tmp_path)
     assert report["total"] == 5
     assert report["explicit_rewards"] == 2

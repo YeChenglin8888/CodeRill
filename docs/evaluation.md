@@ -33,6 +33,6 @@ python -m examples.harbor_run run --task chess-best-move --output harbor-runs/co
 python -m examples.harbor_run report --output harbor-runs/coderill-smoke
 ```
 
-Preflight checks the local package, Harbor CLI and Python package, Docker daemon, and model variables without calling the provider. The runner requests one attempt with one concurrent task. `report` reads Harbor `result.json` files offline and counts explicit positive rewards, explicit zero rewards, missing rewards, timeouts, and the phase at which a trial stopped. A missing reward never enters the explicit-reward denominator. Keep the run directory, dataset/task, model settings, and Harbor version with the report. No CodeRill Harbor reward has been produced here.
+Preflight checks the local package, Harbor CLI, Docker daemon, and model variables without calling the provider. The runner requests one attempt with one concurrent task. `report` reads trial `result.json` files beneath Harbor job directories offline and counts explicit positive rewards, explicit zero rewards, missing rewards, timeouts, and the phase at which a trial stopped. A missing reward never enters the explicit-reward denominator. Keep the run directory, dataset/task, model settings, and Harbor version with the report. No CodeRill Harbor reward has been produced here.
 
 Report the denominator, model, task set, verifier, permitted feedback attempts, completion failures and infrastructure errors alongside any future success rate.
