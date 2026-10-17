@@ -10,6 +10,8 @@ import subprocess
 from collections import Counter
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 def preflight(root: Path, harbor: str, env: dict[str, str]) -> list[dict[str, str | bool]]:
     checks = []
@@ -87,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(summarize(args.output), ensure_ascii=False, indent=2))
         return 0
     root = Path(__file__).resolve().parents[1]
+    load_dotenv(root / ".env")
     checks = preflight(root, args.harbor, os.environ)
     print(json.dumps({"ok": all(item["ok"] for item in checks), "checks": checks}, ensure_ascii=False, indent=2))
     if not all(item["ok"] for item in checks):
