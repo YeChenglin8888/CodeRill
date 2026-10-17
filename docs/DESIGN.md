@@ -4,7 +4,7 @@
 
 ## 1. Visual Theme & Atmosphere
 
-Editorial developer documentation: warm paper, dark ink, precise rules, and a restrained green accent. The first screen explains the product and shows a real installation command. Motion tier: L1 refined static. Dependency: CSS only.
+Editorial developer documentation: warm paper, dark ink, precise rules, and a restrained green accent. The first screen explains the product; the sections below teach agent basics, trace one request, map the source, and show a verified local-checkout installation. Motion tier: L1 refined static. Dependency: CSS only.
 
 ## 2. Color Palette & Roles
 
@@ -22,7 +22,7 @@ Primary links are filled green pills with a darker hover state; secondary links 
 
 ## 5. Layout Principles
 
-Maximum content width: 1120 px; horizontal padding: 24 px desktop and 18 px mobile. Sections use 88–112 px vertical spacing on desktop and 64 px on mobile. The hero is a two-column grid; capability list is three columns, becoming one column on mobile. Text sections stay near 70 characters per line.
+Maximum content width: 1120 px; horizontal padding: 24 px desktop and 18 px mobile. Sections use 88–112 px vertical spacing on desktop and 64 px on mobile. The hero is a two-column grid; concept and architecture lists use a responsive grid, and the request trace is a readable numbered sequence. Text sections stay near 70 characters per line.
 
 ## 6. Depth & Elevation
 
@@ -34,7 +34,7 @@ L1: a short fade and upward entrance for hero content, plus hover/focus transiti
 
 ## 8. Do's and Don'ts
 
-Show real product behavior and the currently working GitHub installation path. Do not claim that a PyPI release, live model benchmark, or command sandbox exists. Avoid decorative screenshots, fake usage statistics, and external assets.
+Show real product behavior and the currently documented GitHub checkout installation path. Link module descriptions to actual source files. Do not claim that a PyPI release, live model benchmark, or command sandbox exists. Avoid decorative screenshots, fake usage statistics, and external assets.
 
 ## 9. Responsive Behavior
 

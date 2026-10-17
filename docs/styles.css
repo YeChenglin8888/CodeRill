@@ -303,6 +303,65 @@ h1 em {
   font-size: 1rem;
   line-height: 1.8;
 }
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.concept {
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--accent);
+}
+.concept span,
+.flow-number {
+  color: var(--accent);
+  font: 700 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.concept h3,
+.flow-list h3 {
+  margin: 0.5rem 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+}
+.concept p,
+.flow-list p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+.flow-section {
+  padding-block: 100px;
+  background: var(--surface-alt);
+  border-block: 1px solid var(--border);
+}
+.flow-list {
+  max-width: 860px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.flow-list li {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 1.1rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--border-hover);
+}
+.flow-list li:last-child {
+  border-bottom: 1px solid var(--border-hover);
+}
+.flow-list code {
+  display: inline-block;
+  margin-top: 0.65rem;
+  color: var(--accent);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.flow-note {
+  max-width: 860px;
+  margin: 1.5rem 0 0;
+  font-weight: 600;
+}
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -337,12 +396,12 @@ h1 em {
   margin: 1rem 0 0.6rem;
 }
 .feature p {
-  min-height: 7.4rem;
+  min-height: 6.3rem;
   color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.8;
 }
-.feature code {
+.feature a {
   color: var(--accent);
   font:
     12px ui-monospace,
@@ -351,10 +410,39 @@ h1 em {
     monospace;
   overflow-wrap: anywhere;
 }
+.feature a:hover,
+.reading-list a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .constraint {
   margin: 1.4rem 0 0;
   color: var(--text-tertiary);
   font-size: 0.82rem;
+}
+.reading {
+  padding-top: 0;
+}
+.reading-list {
+  max-width: 860px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+.reading-list li {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.reading-list span {
+  color: var(--text-secondary);
+}
+.reading-list a {
+  color: var(--accent);
+  font-weight: 700;
 }
 .install-section {
   background: var(--surface-alt);
@@ -414,6 +502,13 @@ h1 em {
   margin: 1rem 0 0;
   color: var(--text-tertiary);
   font-size: 0.78rem;
+}
+.install-steps > p code {
+  display: inline;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-size: inherit;
 }
 .closing {
   max-width: 760px;
@@ -480,11 +575,20 @@ h1 em {
     padding-top: 75px;
     padding-bottom: 75px;
   }
+  .concept-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .flow-section {
+    padding-block: 75px;
+  }
   .feature-grid {
     grid-template-columns: 1fr;
   }
   .feature p {
     min-height: 0;
+  }
+  .reading {
+    padding-top: 0;
   }
   .install-grid {
     grid-template-columns: 1fr;
@@ -521,6 +625,13 @@ h1 em {
   }
   .footer {
     flex-wrap: wrap;
+  }
+  .concept-grid {
+    grid-template-columns: 1fr;
+  }
+  .reading-list li {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {
