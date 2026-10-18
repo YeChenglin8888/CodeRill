@@ -1,8 +1,20 @@
 # CodeRill
 
-CodeRill 是一个面向长任务恢复的 Python 编程 Agent。它用追加式会话日志记录事实，在修改文件前等待审批，处理上下文限制，并能在进程退出后恢复。CLI 和可选的 Textual TUI 共用一个异步运行时。
+CodeRill 是一个开源的 Python 编程 Agent，可以直接在终端中使用。给它一个代码任务，它会查看和搜索项目、提出修改、运行命令，再根据结果决定下一步；源码也适合用来学习编程 Agent 如何工作。
+
+它重点处理长任务：用追加式会话日志记录执行过程，修改文件前请求审查，管理上下文长度，并在中断后恢复。CLI 和可选的 Textual TUI 共用一个异步运行时。
 
 [English](README.md) · [架构与故障语义](docs/architecture.md) · [完整面经](docs/CodeRill项目面试完整版.md) · [FirstCoder 能力对照](docs/FirstCoder能力对照.md) · [实施状态](docs/implementation-status.md)
+
+## pipx 一条命令安装
+
+准备好 Python 3.10+ 和 [pipx](https://pipx.pypa.io/latest/how-to/install-pipx.html)，一条命令从 [PyPI](https://pypi.org/project/coderill/) 安装命令行程序：
+
+```bash
+pipx install coderill
+```
+
+在环境变量中设置 `OPENAI_API_KEY`，进入想让 Agent 处理的项目目录，运行 `coderill "解释测试失败的原因"`。默认工作区是当前目录；`coderill --help` 可以查看其他参数。上述命令安装基础 CLI；TUI、MCP 的可选依赖见下文。
 
 ## 安装与使用
 
