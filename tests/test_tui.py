@@ -1,6 +1,7 @@
 import asyncio
 
-from textual.widgets import TextArea
+from textual.containers import VerticalScroll
+from textual.widgets import Static, TextArea
 
 from coderill.agent.runtime import TurnResult
 from coderill.app.tui import CodeRillApp
@@ -62,6 +63,24 @@ def test_tui_stream_review_and_approval(tmp_path):
     asyncio.run(scenario())
 
 
+def test_tui_stream_stays_in_history_without_resizing_it(tmp_path):
+    async def scenario():
+        app = CodeRillApp(FakeState(tmp_path))
+        async with app.run_test() as pilot:
+            history = app.query_one("#history", VerticalScroll)
+            height = history.size.height
+            app._runtime_event(ChatStreamEvent("text_delta", text="first\n" * 30))
+            app._runtime_event(ChatStreamEvent("text_delta", text="last"))
+            await pilot.pause()
+            assert history.size.height == height
+            assert "last" in str(app.streaming_message.render())
+            assert len(history.query(Static)) == 1
+            app._show_result(TurnResult("complete"))
+            assert len(history.query(Static)) == 1
+
+    asyncio.run(scenario())
+
+
 def test_tui_chinese_review_has_explicit_choices(tmp_path):
     async def scenario():
         state = FakeState(tmp_path)
@@ -98,11 +117,16 @@ def test_tui_switches_sessions_with_shared_state(tmp_path):
         state.pending_attachments.append({"name": "old.png"})
         app = CodeRillApp(state)
         async with app.run_test() as pilot:
+            app._write_history("old session only")
             app.query_one("#sessions").value = other.id
             await pilot.pause(0.2)
             assert state.session.id == other.id
             assert not state.pending_attachments
             assert app.state.agent.on_event == app._runtime_event
+            history = app.query_one("#history", VerticalScroll)
+            rendered = " ".join(str(entry.render()) for entry in history.query(Static))
+            assert "saved message" in rendered
+            assert "old session only" not in rendered
     asyncio.run(scenario())
 
 

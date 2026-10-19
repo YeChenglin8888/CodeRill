@@ -205,11 +205,11 @@ def main(argv: list[str] | None = None) -> int:
 def _run_once(state: State, prompt: str, console: Console) -> int:
     try:
         prior = state.session.pending_review or state.session.incomplete_calls or state.session.last_status == "running"
-        result = state.run_async(state.agent.resume_turn()) if prior else None
+        result = _run_with_feedback(state, state.agent.resume_turn(), console) if prior else None
         submitted = False
         while True:
             if result is None:
-                result = state.run_async(state.agent.run_turn(prompt, state.pending_attachments))
+                result = _run_with_feedback(state, state.agent.run_turn(prompt, state.pending_attachments), console)
                 submitted = True
                 if result.status != "failed":
                     state.pending_attachments.clear()
@@ -224,7 +224,7 @@ def _run_once(state: State, prompt: str, console: Console) -> int:
                     console.print(f"[yellow]{'等待批准' if chinese else 'Approval pending'}: {review['id']}[/yellow]")
                     return 2
                 decision = _approval_choice(chinese)
-                result = state.run_async(state.agent.resume_turn(review["id"], decision))
+                result = _run_with_feedback(state, state.agent.resume_turn(review["id"], decision), console)
                 continue
             if result.status != "complete":
                 console.print(f"\n[red]{result.error or result.status}[/red]")
@@ -238,6 +238,28 @@ def _run_once(state: State, prompt: str, console: Console) -> int:
         return 130
     _write("\n")
     return 0
+
+
+def _run_with_feedback(state: State, coroutine, console: Console):
+    if not console.is_terminal or not hasattr(state.agent, "on_event"):
+        return state.run_async(coroutine)
+    original = state.agent.on_event
+    status = console.status("思考中…" if is_chinese(state.session.messages) else "Thinking…", spinner="dots")
+    active = True
+
+    def on_event(event):
+        nonlocal active
+        if active and event.kind in ("text_delta", "tool_started", "tool_result"):
+            status.stop()
+            active = False
+        original(event)
+
+    state.agent.on_event = on_event
+    try:
+        with status:
+            return state.run_async(coroutine)
+    finally:
+        state.agent.on_event = original
 
 
 def _print_welcome(state: State, console: Console) -> None:

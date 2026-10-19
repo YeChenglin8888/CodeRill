@@ -12,6 +12,7 @@ from coderill.agent.runtime import TurnResult
 from coderill.app import cli
 from coderill.language import is_chinese
 from coderill.permissions import Mode
+from coderill.providers.types import ChatStreamEvent
 
 
 def test_latest_human_message_sets_language():
@@ -55,6 +56,30 @@ def test_cli_review_uses_selected_decision(monkeypatch):
     monkeypatch.setattr(cli, "choice", lambda *args, **kwargs: "deny")
     assert cli._run_once(state, "请写文件", Console(file=io.StringIO())) == 0
     assert decisions == [("r1", "deny")]
+
+
+def test_cli_feedback_stops_before_stream_output(monkeypatch):
+    events = []
+    class Status:
+        def __enter__(self):
+            events.append("start")
+            return self
+
+        def __exit__(self, *_):
+            events.append("exit")
+
+        def stop(self):
+            events.append("stop")
+
+    console = Console(file=io.StringIO(), force_terminal=True)
+    monkeypatch.setattr(console, "status", lambda *args, **kwargs: Status())
+    agent = SimpleNamespace(on_event=lambda event: events.append(event.text))
+    original = agent.on_event
+    state = SimpleNamespace(agent=agent, session=SimpleNamespace(messages=[]),
+                            run_async=lambda value: (agent.on_event(ChatStreamEvent("text_delta", text="hello")), value)[1])
+    assert cli._run_with_feedback(state, "done", console) == "done"
+    assert events == ["start", "stop", "hello", "exit"]
+    assert agent.on_event is original
 
 
 def test_help_follows_session_language():
