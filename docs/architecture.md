@@ -34,7 +34,7 @@ flowchart TD
 
 ## Why these layers are separate
 
-| Layer | Reason for the boundary | Evidence to show in an interview |
+| Layer | Reason for the boundary | How to verify |
 | --- | --- | --- |
 | `app` | CLI, TUI, and headless callers must agree on approval and stop semantics. | Follow `State.rebuild` into `AgentRuntime`; TUI buttons submit review ID and choice. |
 | `agent` | The order of model calls, tool calls, budget checks, and recovery is one state machine. | Trace `_drive` and the paired `tool_started` / `tool_finished` events. |
@@ -108,4 +108,3 @@ The log records what CodeRill knows. It cannot guarantee that an external comman
 
 Real provider, MCP server, and browser behavior needs explicit integration runs. The offline tests exercise adapters with fake SDK clients and browser logic with fakes. The browser reader's source notice remains in `coderill/browser_NOTICE.txt`.
 
-For the interview question-by-question mapping and verified limits, see `FirstCoder能力对照.md` and `CodeRill项目面试完整版.md`.
