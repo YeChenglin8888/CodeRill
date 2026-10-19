@@ -13,7 +13,7 @@ Run `python scripts/code_stats.py` to reproduce source counts. The counter inclu
 | 4 | Full request budget estimate, task-boundary checkpoint trigger, stale-read hints, type-aware old-output previews, archival, summary fallback, revisioned task plan | `tests/test_context_builder.py`, `tests/test_runtime.py`, `tests/test_taskplan.py` |
 | 5 | CLI and Textual TUI on one runner; persisted text/image attachments and capability check | `tests/test_tui.py`, `tests/test_attachments.py`, `tests/test_app_state.py` |
 | 6 | Official MCP SDK transports and per-turn tool search; pinned Skill snapshots; durable background status and plan reconciliation; long-running process logs; bounded child agents and worktree review/apply | `tests/test_mcp_sdk.py`, `tests/test_skills.py`, `tests/test_services.py`, `tests/test_background.py`, `tests/test_subagents.py` |
-| 7 | Architecture and interview walkthrough, offline failure demo, optional real-model smoke, isolated manifest evaluation, Harbor adapter with preflight, one-task entry and result classification, Linux/Windows CI workflow | `docs/evaluation.md`, `examples/benchmark_suite.py`, `examples/harbor_agent.py`, `examples/harbor_run.py`, `tests/test_harbor_adapter.py`, `tests/test_harbor_run.py` |
+| 7 | Architecture documentation, offline failure demo, optional real-model smoke, isolated manifest evaluation, Harbor adapter with preflight, one-task entry and result classification, Linux/Windows CI workflow | `docs/evaluation.md`, `examples/benchmark_suite.py`, `examples/harbor_agent.py`, `examples/harbor_run.py`, `tests/test_harbor_adapter.py`, `tests/test_harbor_run.py` |
 
 ## Verification boundary
 

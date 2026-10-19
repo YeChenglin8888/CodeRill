@@ -4,7 +4,7 @@ CodeRill 是一个开源的 Python 编程 Agent，可以直接在终端中使用
 
 它重点处理长任务：用追加式会话日志记录执行过程，修改文件前请求审查，管理上下文长度，并在中断后恢复。CLI 和可选的 Textual TUI 共用一个异步运行时。
 
-[English](README.md) · [架构与故障语义](docs/architecture.md) · [完整面经](docs/CodeRill项目面试完整版.md) · [FirstCoder 能力对照](docs/FirstCoder能力对照.md) · [实施状态](docs/implementation-status.md)
+[English](README.md) · [架构与故障语义](docs/architecture.md) · [实施状态](docs/implementation-status.md)
 
 ## pipx 一条命令安装
 

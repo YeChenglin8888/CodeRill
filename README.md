@@ -4,7 +4,7 @@ CodeRill is an open-source Python coding agent you can run in your terminal. Giv
 
 Long tasks are its focus: CodeRill records each step in an append-only session log, asks for review before changing files, manages context limits, and can resume after an interruption. The CLI and optional Textual interface share the same async runtime.
 
-[中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Interview walkthrough](docs/CodeRill项目面试完整版.md) · [Evaluation](docs/evaluation.md) · [Implementation status](docs/implementation-status.md)
+[中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Evaluation](docs/evaluation.md) · [Implementation status](docs/implementation-status.md)
 
 ## Quick start with pipx
 
