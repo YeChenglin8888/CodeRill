@@ -62,6 +62,20 @@ def test_tui_stream_review_and_approval(tmp_path):
     asyncio.run(scenario())
 
 
+def test_tui_chinese_review_has_explicit_choices(tmp_path):
+    async def scenario():
+        state = FakeState(tmp_path)
+        state.session.record({"role": "user", "content": "请修改文件"})
+        app = CodeRillApp(state)
+        async with app.run_test() as pilot:
+            await pilot.press("请", "修", "改", "enter")
+            await pilot.pause()
+            assert "请确认是否执行" in str(app.query_one("#approval").render())
+            assert str(app.query_one("#always").label) == "始终允许同类操作"
+
+    asyncio.run(scenario())
+
+
 def test_tui_restores_pending_review(tmp_path):
     async def scenario():
         state = FakeState(tmp_path)
@@ -135,6 +149,25 @@ def test_tui_multiline_and_file_attachment(tmp_path):
             await pilot.press("enter")
             await pilot.pause()
             assert app.review is not None
+    asyncio.run(scenario())
+
+
+def test_tui_editor_grows_and_shrinks_with_lines(tmp_path):
+    async def scenario():
+        app = CodeRillApp(FakeState(tmp_path))
+        async with app.run_test() as pilot:
+            editor = app.query_one("#message", TextArea)
+            assert editor.size.height == 1
+            await pilot.press("a", "shift+enter", "b")
+            await pilot.pause()
+            assert editor.size.height == 2
+            editor.clear()
+            await pilot.pause()
+            assert editor.size.height == 1
+            editor.insert("a" * 90)
+            await pilot.pause()
+            assert editor.size.height > 1
+
     asyncio.run(scenario())
 
 

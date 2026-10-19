@@ -1,0 +1,42 @@
+// Learning example: requires a Windows agent labelled windows-coderill.
+// The node needs Git, Python (py), Node/npm and a reachable Docker Engine.
+pipeline {
+    agent { label 'windows-coderill' }
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Web API checks') {
+            steps {
+                bat 'py -m venv .venv'
+                bat '.venv\\Scripts\\python.exe -m pip install -e ".[dev,mcp]"'
+                bat '.venv\\Scripts\\python.exe -m pytest tests/test_web.py -q --junitxml=reports/web.xml'
+            }
+        }
+        stage('Frontend build') {
+            steps {
+                dir('web') {
+                    bat 'call npm ci'
+                    bat 'call npm run build'
+                }
+            }
+        }
+        stage('Container image') {
+            steps {
+                bat 'docker build -t coderill:ci-%BUILD_NUMBER% .'
+            }
+        }
+    }
+    post {
+        always {
+            junit testResults: 'reports/web.xml', allowEmptyResults: true
+            archiveArtifacts artifacts: 'web/dist/**', allowEmptyArchive: true, fingerprint: true
+        }
+    }
+}

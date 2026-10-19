@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CodeRill · 客户端设计预览</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 6c3.5-4 6.5 4 10 0s6.5 4 8 0M3 12c3.5-4 6.5 4 10 0s6.5 4 8 0M3 18c3.5-4 6.5 4 10 0s6.5 4 8 0"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 8V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v1M3 8h17l-2 11H5z"/></symbol>
+    <symbol id="i-tasks" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="m15 18 2 2 4-5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24"><circle cx="7" cy="5" r="2"/><circle cx="17" cy="7" r="2"/><circle cx="7" cy="19" r="2"/><path d="M7 7v10m10-8c0 5-10 2-10 7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v5c0 5-8 10-8 10S4 16 4 11V6z"/><path d="m8 11 3 3 5-5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="m10 3-.5 3-2 .9L5 5.5 2.5 10l2.5 1.5v2L2.5 15 5 19.5l2.5-1.4 2 .9.5 3h5l.5-3 2-.9 2.5 1.4 2.5-4.5-2.5-1.5v-2L22.5 10 20 5.5l-2.5 1.4-2-.9L15 3z" transform="translate(-.5 0) scale(.96)"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 3.8 2.1c-1 .6-1.5 1-1.5 2.4m0 3h.01"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 14h8m-8 3h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1"/></symbol>
+    <symbol id="i-slash" viewBox="0 0 24 24"><path d="m15 4-6 16"/></symbol>
+    <symbol id="i-plan" viewBox="0 0 24 24"><path d="m3 6 2 2 3-4m3 2h10M3 13h5m3 0h10M3 20h5m3 0h10"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24"><path d="M10.3 4.5a2 2 0 0 1 3.4 0l8 14a1.5 1.5 0 0 1-1.3 2.2H3.6a1.5 1.5 0 0 1-1.3-2.2zM12 9v5m0 3h.01"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 9 5v9l-9 5-9-5V8zM3 8l9 5 9-5m-9 5v9M7 5.8l10 5.4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol>
+  </defs></svg>
+
+  <div class="app" id="app">
+    <button class="sidebar-scrim" data-action="toggle-sidebar" aria-label="关闭导航" tabindex="-1"></button>
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <span class="brand-mark" data-icon="wave"></span><span class="brand-name">CodeRill</span>
+        <button class="icon-button sidebar-toggle" data-action="toggle-sidebar" aria-label="收起侧栏" title="收起侧栏 · Ctrl B"><span data-icon="panel"></span></button>
+      </div>
+      <nav class="primary-nav">
+        <button class="nav-item" data-view="new"><span data-icon="plus"></span><span class="nav-label">新建任务</span><kbd>Ctrl ⇧ O</kbd></button>
+        <button class="nav-item" data-view="projects"><span data-icon="folder"></span><span class="nav-label">项目</span></button>
+        <button class="nav-item" data-view="background"><span data-icon="tasks"></span><span class="nav-label">后台任务</span><span class="small-count">1</span></button>
+      </nav>
+      <div class="sidebar-scroll">
+        <section class="side-group">
+          <div class="group-heading"><span>固定</span><button class="icon-button small" data-action="project-picker" aria-label="添加固定项目" title="添加项目"><span data-icon="plus"></span></button></div>
+          <button class="project-tree-title" data-action="toggle-project"><span data-icon="chevron" class="tree-chevron"></span><span data-icon="folder"></span><span>CodeRill</span></button>
+          <div class="project-tree" id="project-tree">
+            <button class="tree-item" data-view="chat"><span class="tree-dot"></span><span>完善会话恢复流程</span></button>
+            <button class="tree-item" data-view="chat"><span class="tree-dot"></span><span>梳理 Agent 运行架构</span></button>
+          </div>
+          <button class="project-tree-title" data-project="FirstCoder"><span class="closed-chevron" data-icon="chevron"></span><span data-icon="folder"></span><span>FirstCoder</span></button>
+        </section>
+        <section class="side-group recent-group">
+          <div class="group-heading"><span>最近任务</span><button class="icon-button small" data-action="search-tasks" aria-label="搜索任务" title="搜索任务"><span data-icon="search"></span></button></div>
+          <div class="time-label">今天</div>
+          <button class="recent-item" data-view="chat" title="完善会话恢复流程 · 等待审批"><span class="task-indicator waiting"></span><span>完善会话恢复流程</span></button>
+          <button class="recent-item" data-view="chat"><span class="task-indicator"></span><span>检查工具调用的权限边界</span></button>
+          <div class="time-label older">昨天</div>
+          <button class="recent-item" data-view="chat"><span class="task-indicator"></span><span>理解这个项目的结构</span></button>
+          <button class="recent-item" data-view="chat"><span class="task-indicator"></span><span>整理测试运行结果</span></button>
+        </section>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="local-account" data-action="settings"><span class="local-avatar" data-icon="wave"></span><span class="account-label"><strong>本地工作区</strong><small><span class="status-dot"></span>本地运行</small></span></button>
+        <button class="icon-button settings-trigger" data-action="settings" aria-label="打开设置" title="设置"><span data-icon="gear"></span></button>
+      </div>
+    </aside>
+    <main class="workspace">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" data-action="toggle-sidebar" aria-label="打开导航"><span data-icon="panel"></span></button>
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="top-actions" id="top-actions"></div>
+        <button class="design-pill" data-action="guide" title="查看设计范围与操作说明">设计预览<span class="preview-dot"></span></button>
+      </header>
+      <div class="screen" id="screen"></div>
+    </main>
+  </div>
+
+  <template id="view-new">
+    <section class="home screen-enter">
+      <div class="home-inner">
+        <div class="greeting"><span class="greeting-mark" data-icon="wave"></span><h1>今天，想做点什么？</h1></div>
+        <div data-composer></div>
+        <div class="suggestions">
+          <p class="section-caption">从这里开始</p>
+          <button data-suggestion="先帮我梳理这个项目的结构，说明入口、核心模块和运行方式。"><span class="suggestion-icon" data-icon="folder"></span><span><strong>理解这个项目</strong><small>从项目结构，到核心运行流程</small></span><span class="suggestion-arrow" data-icon="right"></span></button>
+          <button data-suggestion="帮我审查最近的代码改动，优先检查真实缺陷与潜在风险。"><span class="suggestion-icon" data-icon="git"></span><span><strong>检查最近的改动</strong><small>看看改了什么，还有哪些问题</small></span><span class="suggestion-arrow" data-icon="right"></span></button>
+          <button data-suggestion="帮我找到失败的测试，定位原因，修复后运行相关检查。"><span class="suggestion-icon" data-icon="terminal"></span><span><strong>修复失败的测试</strong><small>定位原因，修改代码，验证结果</small></span><span class="suggestion-arrow" data-icon="right"></span></button>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <template id="composer-template">
+    <div class="composer-block">
+      <form class="composer" id="composer">
+        <div class="attachment-list" id="attachments"></div>
+        <label class="sr-only" for="prompt">描述任务或输入斜杠命令</label>
+        <textarea id="prompt" rows="2" placeholder="描述任务，或输入 / 使用命令"></textarea>
+        <div class="composer-toolbar">
+          <div class="composer-left">
+            <button type="button" class="icon-button" data-action="attach" aria-label="添加文件或图片" title="添加文件或图片"><span data-icon="plus"></span></button>
+            <button type="button" class="icon-button slash-button" data-action="commands" aria-label="打开命令菜单" title="命令 · Ctrl K"><span data-icon="slash"></span></button>
+            <span class="toolbar-divider"></span>
+            <button type="button" class="text-button mode-button" data-action="mode"><span data-icon="code"></span><span id="mode-label">执行</span><span class="chevron" data-icon="chevron"></span></button>
+          </div>
+          <div class="composer-right">
+            <button type="button" class="text-button model-button" data-action="model"><span id="model-label">deepseek-v4-flash</span><span class="chevron" data-icon="chevron"></span></button>
+            <button type="submit" class="send-button" id="send" aria-label="发送任务" disabled><span data-icon="arrow"></span></button>
+          </div>
+        </div>
+      </form>
+      <div class="project-strip">
+        <button class="text-button workspace-button" data-action="project-picker"><span data-icon="folder"></span><span id="workspace-label">CodeRill</span><span class="chevron" data-icon="chevron"></span></button>
+        <button class="text-button permission-button" data-action="permissions"><span data-icon="shield"></span><span id="permission-label">标准权限</span></button>
+      </div>
+    </div>
+  </template>
+
+  <template id="view-chat">
+    <div class="chat-layout screen-enter" id="chat-layout">
+      <div class="chat-main">
+        <div class="chat-scroll" id="chat-scroll">
+          <div class="thread">
+            <div class="date-divider">今天 · 14:32</div>
+            <article class="user-message"><p id="user-message">帮我完善会话恢复流程。中断后再次进入时，要能正确处理未完成的工具调用，避免重复执行。</p></article>
+            <article class="assistant-message">
+              <div class="assistant-label"><span data-icon="wave"></span><strong>CodeRill</strong></div>
+              <p>我会先检查会话恢复和工具状态记录，再调整恢复入口，确保已完成的操作不会被重复执行。</p>
+              <details class="activity">
+                <summary><span class="completed-icon" data-icon="check"></span><span>已查看 4 个文件，搜索 2 次</span><span class="activity-time">6 秒</span><span data-icon="chevron"></span></summary>
+                <div class="activity-lines">
+                  <div><span data-icon="file"></span><span>读取 <code>agent/runtime.py</code></span><span data-icon="check"></span></div>
+                  <div><span data-icon="file"></span><span>读取 <code>session/model.py</code></span><span data-icon="check"></span></div>
+                  <div><span data-icon="search"></span><span>搜索未完成工具调用的恢复路径</span><span data-icon="check"></span></div>
+                  <div><span data-icon="file"></span><span>读取恢复流程与测试文件</span><span data-icon="check"></span></div>
+                </div>
+              </details>
+              <p class="before-review">恢复前需要先结算已有工具结果。准备修改以下判断，请确认：</p>
+              <div id="review-state"></div>
+            </article>
+            <div class="thread-end" id="thread-end"></div>
+          </div>
+        </div>
+        <div class="chat-bottom">
+          <p class="composer-state" id="composer-state"><span data-icon="clock"></span>先处理上方审批，再继续发送</p>
+          <div data-composer></div>
+          <p class="keyboard-hint">Enter 发送<span>·</span>Shift + Enter 换行</p>
+        </div>
+      </div>
+      <aside class="inspector" id="inspector" aria-label="任务详情">
+        <div class="inspector-header"><strong>任务详情</strong><button class="icon-button" data-action="inspector" aria-label="关闭任务详情"><span data-icon="close"></span></button></div>
+        <div class="inspector-tabs" role="tablist" aria-label="详情分类">
+          <button role="tab" data-inspector="changes" aria-selected="true">改动 <span>1</span></button>
+          <button role="tab" data-inspector="plan" aria-selected="false">计划</button>
+          <button role="tab" data-inspector="run" aria-selected="false">运行</button>
+        </div>
+        <div class="inspector-body" id="inspector-body" role="tabpanel"></div>
+      </aside>
+      <button class="inspector-scrim" data-action="inspector" aria-label="关闭任务详情" tabindex="-1"></button>
+    </div>
+  </template>
+
+  <template id="review-pending">
+    <section class="review-card" aria-label="待审批的文件修改">
+      <div class="review-head"><span data-icon="shield"></span><strong>等待你的批准</strong><span class="review-kind">修改文件</span></div>
+      <div class="review-file"><span data-icon="file"></span><button data-action="open-changes">coderill/agent/runtime.py</button><span class="diff-stats"><b>+2</b><em>−1</em></span></div>
+      <div class="diff-preview" aria-label="文件差异预览">
+        <div class="diff-line context"><span>118</span><code>async def resume_turn(self, ...):</code></div>
+        <div class="diff-line removed"><span>119</span><code>−    await self._drive()</code></div>
+        <div class="diff-line added"><span>119</span><code>+    self._repair_finished_results()</code></div>
+        <div class="diff-line added"><span>120</span><code>+    return await self._drive()</code></div>
+      </div>
+      <div class="review-footer"><button class="text-button review-full" data-action="open-changes">查看完整差异<span data-icon="right"></span></button><div class="review-buttons"><button class="button" data-action="deny">拒绝</button><div class="split-button"><button class="button primary" data-action="approve">批准这一次</button><button class="button primary split-arrow" data-action="grant" aria-label="更多授权选项"><span data-icon="chevron"></span></button></div></div></div>
+    </section>
+  </template>
+
+  <template id="view-projects">
+    <section class="page-content screen-enter">
+      <div class="page-heading"><div><p class="eyebrow">你的工作空间</p><h1>项目</h1><p>从一个熟悉的项目，开始下一步。</p></div><button class="button" data-action="add-project"><span data-icon="plus"></span>添加项目</button></div>
+      <label class="list-search"><span data-icon="search"></span><input type="search" id="project-search" placeholder="搜索项目名称或路径" aria-label="搜索项目"></label>
+      <div class="project-list" id="project-list"></div>
+      <p class="page-note"><span data-icon="folder"></span>项目中的文件保留在本机。选择项目后，再开始一个任务。</p>
+    </section>
+  </template>
+
+  <template id="view-background">
+    <section class="page-content screen-enter">
+      <div class="page-heading"><div><p class="eyebrow">让工作继续</p><h1>后台任务</h1><p>查看子任务的进度，在需要时接回结果。</p></div><button class="icon-button" data-action="refresh-jobs" aria-label="刷新后台任务" title="刷新状态"><span data-icon="clock"></span></button></div>
+      <div class="page-tabs"><button class="selected" data-job-tab="running">运行中 <span>1</span></button><button data-job-tab="complete">已完成 <span>2</span></button></div>
+      <div class="job-list" id="job-list"></div>
+      <div class="background-note"><span data-icon="git"></span><div><strong>每个子任务，都有独立的工作空间</strong><p>只读任务返回报告；可写任务的改动会先进入审查，由你决定是否应用。</p></div></div>
+    </section>
+  </template>
+
+  <input type="file" id="file-input" multiple hidden>
+  <dialog class="overlay-dialog" id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="./prototype.js"></script>
+</body>
+</html>

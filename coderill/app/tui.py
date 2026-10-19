@@ -12,6 +12,7 @@ from textual.events import Key
 from textual.widgets import Button, Footer, Header, RichLog, Select, Static, TextArea
 
 from ..agent.runtime import TurnResult
+from ..language import is_chinese
 from ..providers.types import ChatStreamEvent
 from ..session import Session
 from .clipboard import read_image
@@ -32,7 +33,7 @@ class Composer(TextArea):
 
 
 class CodeRillApp(App):
-    TITLE = "CodeRill"
+    TITLE = "≋ CodeRill"
     BINDINGS = (("ctrl+c", "cancel_turn", "Cancel"), ("ctrl+n", "new_session", "New"),
                 ("f8", "paste_image", "Paste image"), ("ctrl+q", "quit", "Quit"))
     CSS = """
@@ -42,7 +43,8 @@ class CodeRillApp(App):
     #plan { height: 1fr; overflow-y: auto; }
     #approval { display: none; height: auto; max-height: 12; overflow-y: auto; border: round yellow; }
     #approval-actions { display: none; height: auto; }
-    #message { height: 5; }
+    #message { height: 3; min-height: 3; max-height: 10; border: round #789183; padding: 0 1; }
+    #message:focus { border: round #5e806d; }
     #attachments { height: 1; }
     """
 
@@ -55,25 +57,27 @@ class CodeRillApp(App):
         self.state.agent.on_event = self._runtime_event
 
     def compose(self) -> ComposeResult:
+        zh = is_chinese(self.state.session.messages)
         yield Header()
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield Static("Sessions")
+                yield Static("会话" if zh else "Sessions", id="sessions-label")
                 yield Select([(self.state.session.id, self.state.session.id)], id="sessions", allow_blank=False)
-                yield Static("Models")
+                yield Static("模型" if zh else "Models", id="models-label")
                 yield Select([(self.state.config.model, "current")], id="models", allow_blank=False)
-                yield Static("Task plan", classes="heading")
+                yield Static("任务计划" if zh else "Task plan", id="plan-label", classes="heading")
                 yield Static("", id="plan", markup=False)
             with Vertical(id="main"):
                 yield RichLog(id="history", wrap=True, highlight=True, markup=False)
                 yield Static("", id="stream", markup=False)
                 yield Static("", id="approval", markup=False)
                 with Horizontal(id="approval-actions"):
-                    yield Button("Approve", id="approve", variant="success")
-                    yield Button("Always", id="always")
-                    yield Button("Deny", id="deny", variant="error")
+                    yield Button("仅批准本次" if zh else "Approve once", id="approve", variant="success")
+                    yield Button("始终允许同类操作" if zh else "Always allow similar", id="always")
+                    yield Button("拒绝" if zh else "Deny", id="deny", variant="error")
                 yield Static("", id="attachments", markup=False)
-                yield Composer(placeholder="Message · Enter sends · Shift+Enter adds line · /attach path", id="message")
+                yield Composer(placeholder=("输入消息 · Enter 发送 · Shift+Enter 换行 · /attach 路径" if zh else
+                                            "Message · Enter sends · Shift+Enter adds line · /attach path"), id="message")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -86,6 +90,10 @@ class CodeRillApp(App):
 
     async def on_unmount(self) -> None:
         await self.state.close_async()
+
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area.id == "message":
+            event.text_area.styles.height = min(10, max(1, event.text_area.virtual_size.height) + 2)
 
     def _refresh_selectors(self) -> None:
         sessions = self.query_one("#sessions", Select)
@@ -135,7 +143,9 @@ class CodeRillApp(App):
         if not text or self.active_task is not None:
             return
         if self.review is not None:
-            self.query_one("#history", RichLog).write("[review] Resolve the pending approval before sending a message.")
+            self.query_one("#history", RichLog).write(
+                "[review] 请先处理待批准的操作。" if is_chinese(self.state.session.messages) else
+                "[review] Resolve the pending approval before sending a message.")
             return
         if text.startswith("/attach "):
             try:
@@ -157,7 +167,25 @@ class CodeRillApp(App):
                 self.query_one("#history", RichLog).write(f"[error] {exc}")
             return
         self.query_one("#history", RichLog).write(f"[user] {text}")
+        self._set_language(any("\u4e00" <= char <= "\u9fff" for char in text))
         self.active_task = asyncio.create_task(self._run(text))
+
+    def _set_language(self, zh: bool) -> None:
+        for widget_id, chinese, english in (
+            ("#sessions-label", "会话", "Sessions"),
+            ("#models-label", "模型", "Models"),
+            ("#plan-label", "任务计划", "Task plan"),
+        ):
+            self.query_one(widget_id, Static).update(chinese if zh else english)
+        for widget_id, chinese, english in (
+            ("#approve", "仅批准本次", "Approve once"),
+            ("#always", "始终允许同类操作", "Always allow similar"),
+            ("#deny", "拒绝", "Deny"),
+        ):
+            self.query_one(widget_id, Button).label = chinese if zh else english
+        self.query_one("#message", Composer).placeholder = (
+            "输入消息 · Enter 发送 · Shift+Enter 换行 · /attach 路径" if zh else
+            "Message · Enter sends · Shift+Enter adds line · /attach path")
 
     async def _run(self, text: str) -> None:
         try:
@@ -187,8 +215,11 @@ class CodeRillApp(App):
         if result.status == "waiting":
             self.review = result.review
             call = self.review["call"]
+            zh = is_chinese(self.state.session.messages)
+            self._set_language(zh)
             self.query_one("#approval", Static).update(
-                f"Review {call['name']} {call['arguments']}\n{self.review['diff']}\n{result.error}"
+                f"{'请确认是否执行' if zh else 'Review'} {call['name']} {call['arguments']}\n"
+                f"{self.review['diff']}\n{result.error or ''}"
             )
             self.query_one("#approval", Static).display = True
             self.query_one("#approval-actions", Horizontal).display = True

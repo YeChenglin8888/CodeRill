@@ -20,9 +20,10 @@ classifiers = [
 ]
 dependencies = [
     "openai>=1.0",
+    "socksio>=1.0",
     "anthropic>=0.50",
     "rich>=13.0",
-    "prompt_toolkit>=3.0",
+    "prompt_toolkit>=3.0.53",
     "python-dotenv>=1.0",
     "tomli>=2.0; python_version < '3.11'",
 ]
@@ -44,6 +45,9 @@ Issues = "https://github.com/YeChenglin8888/CodeRill/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["coderill"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"coderill/env.example" = "coderill/env.example"
 
 [tool.ruff]
 line-length = 120

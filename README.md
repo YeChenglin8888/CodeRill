@@ -14,7 +14,13 @@ With Python 3.10+ and [pipx](https://pipx.pypa.io/latest/how-to/install-pipx.htm
 pipx install coderill
 ```
 
-Set `OPENAI_API_KEY` in your environment, then run `coderill "explain the failing tests"` from the directory you want to work on. The default workspace is the current directory. Use `coderill --help` to see more options. The core CLI needs no optional extras; TUI and MCP dependencies are described below.
+On first run, CodeRill copies its bundled environment template to `~/.coderill/.env`; uncomment `OPENAI_API_KEY` and fill in your key there, or set it in your environment. If the key is missing, CodeRill prints that path and the required variable. Then run `coderill "explain the failing tests"` from the directory you want to work on. The default workspace is the current directory. Use `coderill --help` to see more options. The core CLI needs no optional extras; TUI and MCP dependencies are described below.
+
+## Local Docker deployment exercise
+
+Run docker compose up -d --build --wait from the checkout and open http://127.0.0.1:18765/ . A sample workspace is bind-mounted and sessions use a named volume. The default placeholder key supports deployment checks only.
+
+Run python scripts/check_docker.py --recreate when the demo has no active Agent task to verify persistence across container replacement, without calling a model. See the [deployment and interview guide](docs/docker-deployment.md) for configuration and the single-user scope.
 
 ## Install and run
 
@@ -29,7 +35,9 @@ coderill --message "fix it"  # equivalent one-request form
 coderill --tui               # optional Textual interface
 ```
 
-On Windows, set the key in your shell or a project `.env` file. An OpenAI-compatible endpoint can be selected with `OPENAI_BASE_URL`; native Anthropic Messages uses `--provider anthropic` and `ANTHROPIC_API_KEY`.
+If installed in the project's `.venv` on Windows, run `.\.venv\Scripts\coderill.exe` from the repository root in PowerShell. The bare `coderill` command requires an activated virtual environment or its `Scripts` directory on `PATH`. The current directory is the default workspace; use `--cwd` to choose another one.
+
+On first run, CodeRill copies its bundled template to `~/.coderill/.env` (on Windows, `$HOME\.coderill\.env`). It also fills an existing empty file, while preserving any file with content. Add your key there to use CodeRill from any directory. Shell environment variables take precedence over a project `.env`, which takes precedence over the user-level `.env`. An OpenAI-compatible endpoint can be selected with `OPENAI_BASE_URL`; native Anthropic Messages uses `--provider anthropic` and `ANTHROPIC_API_KEY`.
 
 ```bash
 coderill --cwd path/to/project --provider anthropic "explain this module"
@@ -37,6 +45,8 @@ coderill --attach screenshot.png --message "what is wrong here?"
 coderill --list
 coderill --resume SESSION_ID
 ```
+
+For the local TypeScript browser UI, run `npm install && npm run build` in `web/`, then run `python -m coderill.app.web --cwd .` from the repository root and open `http://127.0.0.1:8765`. For UI development, run `npm run dev` in `web/` and open `http://127.0.0.1:5173`. The browser client reuses the CLI runtime for sessions, models, permissions, plans, attachments, cost, sharing, undo, MCP, background tasks, child worktree application, streaming, approvals, cancellation, and recovery. The `/` button lists CLI commands.
 
 Image attachment requires a model profile with `vision = true`. Text and image attachments are stored under the session so a restart can reconstruct the request. The model, provider, and vision capability are configured by `~/.coderill/config.toml`, a project `.coderill.toml`, environment variables, or CLI options, in that order of precedence.
 

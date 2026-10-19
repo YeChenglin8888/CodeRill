@@ -14,7 +14,7 @@ CodeRill 是一个开源的 Python 编程 Agent，可以直接在终端中使用
 pipx install coderill
 ```
 
-在环境变量中设置 `OPENAI_API_KEY`，进入想让 Agent 处理的项目目录，运行 `coderill "解释测试失败的原因"`。默认工作区是当前目录；`coderill --help` 可以查看其他参数。上述命令安装基础 CLI；TUI、MCP 的可选依赖见下文。
+首次运行会把安装包内的配置模板复制到 `~/.coderill/.env`；取消 `OPENAI_API_KEY` 行前面的注释并填入密钥，或设置同名环境变量。缺少密钥时，CodeRill 会提示文件路径和变量名。然后进入想让 Agent 处理的项目目录，运行 `coderill "解释测试失败的原因"`。默认工作区是当前目录；`coderill --help` 可以查看其他参数。上述命令安装基础 CLI；TUI、MCP 的可选依赖见下文。
 
 ## 安装与使用
 
@@ -28,7 +28,21 @@ coderill --tui                   # 可选的终端界面
 coderill --resume SESSION_ID     # 恢复会话
 ```
 
-在环境变量或项目 `.env` 中设置 `OPENAI_API_KEY`。原生 Anthropic 接口使用 `--provider anthropic` 和 `ANTHROPIC_API_KEY`；OpenAI 兼容服务可以设置 `OPENAI_BASE_URL`。`--cwd` 指定工作区，`--message` 指定单次请求，`--attach` 添加文本文件或图片。图片要求所选模型配置 `vision = true`。
+如果安装在项目的 `.venv` 中，请先从 PowerShell 进入项目目录，再运行 `.\.venv\Scripts\coderill.exe`；这样无需激活虚拟环境。`coderill` 只有在虚拟环境已激活，或其 `Scripts` 目录已加入 `PATH` 时才能直接使用。默认工作区是运行命令时所在的目录，也可以用 `--cwd` 指定。
+
+本地浏览器界面（TypeScript，保留 Python Agent 运行时）：
+
+```powershell
+cd web
+npm install
+npm run build
+cd ..
+python -m coderill.app.web --cwd .
+```
+
+打开 `http://127.0.0.1:8765`。开发界面时，在另一个终端运行 `cd web; npm run dev`，打开 `http://127.0.0.1:5173`。客户端复用 CLI 的会话、模型、权限、计划、附件、成本、分享、撤销、MCP、后台任务和子任务应用能力，支持流式回复、审批、停止与中断恢复。点击输入框旁的“/ 命令”可查看全部命令；附件可使用文件选择器或 `/attach 路径`。Web 服务仅监听本机地址。
+
+首次运行会把安装包内的模板复制到 `~/.coderill/.env`（Windows 为 `$HOME\.coderill\.env`）；已有空文件也会补上模板，非空文件保持原样。在其中填入真实密钥后，就可从任意目录启动。PowerShell 环境变量优先于项目 `.env`，项目 `.env` 优先于用户级 `.env`。原生 Anthropic 接口使用 `--provider anthropic` 和 `ANTHROPIC_API_KEY`；OpenAI 兼容服务可以设置 `OPENAI_BASE_URL`。`--cwd` 指定工作区，`--message` 指定单次请求，`--attach` 添加文本文件或图片。图片要求所选模型配置 `vision = true`。
 
 配置依次来自默认值、`~/.coderill/config.toml`、项目 `.coderill.toml`、环境变量和命令行。可以定义模型配置并通过 `/model 名称` 或 TUI 切换：
 
@@ -41,6 +55,15 @@ vision = true
 ```
 
 原有 `/new`、`/list`、`/resume`、`/fork`、`/share`、`/cost`、`/plan`、`/approve`、`/mode`、`/undo` 等命令继续可用；新增 `/attach`、`/model`、`/background` 和 `/apply`。
+
+## Docker 单机部署练习
+
+~~~powershell
+docker compose up -d --build --wait
+py scripts/check_docker.py --recreate
+~~~
+
+打开 http://127.0.0.1:18765/ 。示例使用独立演示工作区和会话数据卷，默认占位密钥只供部署检查，不能调用模型；检查脚本会替换本演示容器验证持久化。配置真实模型及企业常见用法见 [Docker 部署与面试讲解](docs/docker-deployment.md)。当前是本地单用户示例。
 
 ## 核心分层
 

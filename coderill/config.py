@@ -62,8 +62,20 @@ class Config:
         overrides: dict[str, Any] | None = None,
     ) -> Config:
         """Merge defaults, global/project TOML, environment and CLI overrides."""
-        load_dotenv()
         ws = Path(workspace).expanduser().resolve() if workspace else Path.cwd().resolve()
+        global_env = Path.home() / ".coderill" / ".env"
+        global_env.parent.mkdir(parents=True, exist_ok=True)
+        template = Path(__file__).with_name("env.example").read_text(encoding="utf-8")
+        try:
+            fd = os.open(global_env, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            if global_env.stat().st_size == 0:
+                global_env.write_text(template, encoding="utf-8")
+        else:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(template)
+        load_dotenv(ws / ".env")
+        load_dotenv(global_env)
         values: dict[str, Any] = {"workspace": ws}
         profiles: dict[str, dict[str, Any]] = {}
         for path in (Path.home() / ".coderill" / "config.toml", ws / ".coderill.toml"):
@@ -111,5 +123,7 @@ class Config:
             )
             values["api_key"] = next((os.environ[name] for name in names if os.getenv(name)), "")
         if not values["api_key"]:
-            raise RuntimeError(f"No API key found for {provider}; set CODERILL_API_KEY or the provider API key.")
+            key_name = "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENAI_API_KEY"
+            raise RuntimeError(f"No API key found for {provider}. Add {key_name}=<your-key> to {global_env}, "
+                               "or set CODERILL_API_KEY in your environment.")
         return cls(**values)

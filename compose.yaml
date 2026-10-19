@@ -1,0 +1,40 @@
+name: coderill-demo
+
+services:
+  coderill:
+    build: .
+    image: coderill:local
+    init: true
+    ports:
+      - "127.0.0.1:18765:18765"
+    environment:
+      # This placeholder supports deployment exercises without a paid model call.
+      # Pass a real key at runtime only when you want the Agent to use a model.
+      CODERILL_API_KEY: ${CODERILL_API_KEY:-deployment-demo-no-model-access}
+      CODERILL_PROVIDER: ${CODERILL_PROVIDER:-openai}
+      CODERILL_MODEL: ${CODERILL_MODEL:-gpt-4o-mini}
+      CODERILL_BASE_URL: ${CODERILL_BASE_URL:-https://api.openai.com/v1}
+    volumes:
+      - type: bind
+        source: ./examples/docker-workspace
+        target: /workspace
+        bind:
+          create_host_path: false
+      - coderill-data:/home/coderill/.coderill
+    restart: unless-stopped
+    stop_grace_period: 20s
+    cpus: 1.0
+    mem_limit: 1g
+    pids_limit: 256
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  coderill-data:

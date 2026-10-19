@@ -1,7 +1,13 @@
 __pycache__/
 *.py[cod]
 .env
+.env.docker
+examples/docker-workspace/.git/
+examples/docker-workspace/deployment-check.txt
 .venv/
+web/node_modules/
+web/dist/
+web/.npm-cache/
 venv/
 .pytest_cache/
 .ruff_cache/

@@ -16,6 +16,7 @@ from ..context import AsyncContextManager, ContextBudgetExceeded
 from ..hooks import Hooks
 from ..mcp import MCPManager, MCPTool, MCPToolSearch
 from ..permissions import ReviewManager
+from ..language import is_chinese
 from ..prompt import PLAN_MODE_PROMPT, system_prompt
 from ..providers.base import ChatProvider
 from ..providers.errors import ProviderError, ProviderErrorKind
@@ -256,7 +257,8 @@ class AgentRuntime:
                     self.session.record_tool_round()
                     continue
                 if response.finish_reason == "length":
-                    self.session.record({"role": "user", "content": "Continue the previous response without repeating it."})
+                    self.session.record({"role": "user", "content": "Continue the previous response without repeating it.",
+                                         "synthetic": True})
                     continue
                 if self.plan and self.plan.unfinished() and not reconciled and self.session.turn_requests < self.config.max_turns:
                     reconciled = True
@@ -267,7 +269,8 @@ class AgentRuntime:
                         return TurnResult("failed", error="changed files without a successful validation command")
                     self._evidence_retries += 1
                     self._save_benchmark_state()
-                    self.session.record({"role": "user", "content": "Run a relevant test or diagnostic command before finishing."})
+                    self.session.record({"role": "user", "content": "Run a relevant test or diagnostic command before finishing.",
+                                         "synthetic": True})
                     continue
                 self.session.set_status("complete")
                 return TurnResult("complete", text=response.content)
@@ -295,6 +298,9 @@ class AgentRuntime:
         visible = [tool for tool in self.registry.tools() if not isinstance(tool, MCPTool)
                    or tool.name in self.session.active_mcp_tools]
         system = system_prompt(self.registry, visible)
+        system += ("\n\nRespond to the user in Chinese. Keep code, paths, and command names unchanged."
+                   if is_chinese(self.session.messages) else
+                   "\n\nRespond to the user in English unless they request another language.")
         if self.skills:
             system += "\n\n# Skills\nCall load_skill(name) for full instructions.\n" + self.skills.render()
         if self.plan and self.plan.tasks:

@@ -68,6 +68,16 @@ def test_reasoning_survives_tool_round_and_session_replay(tmp_path):
     ]
 
 
+def test_model_reply_language_follows_latest_user_message(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    provider = Provider(ChatResponse("好的"), ChatResponse("Done"))
+    runner = runtime(tmp_path, session, provider, Mode.BYPASS)
+    assert asyncio.run(runner.run_turn("请检查文件")).status == "complete"
+    assert "Respond to the user in Chinese" in provider.requests[0].messages[0].content
+    assert asyncio.run(runner.run_turn("Summarize in English")).status == "complete"
+    assert "Respond to the user in English" in provider.requests[1].messages[0].content
+
+
 def test_benchmark_blocks_fourth_identical_failure(tmp_path):
     session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
     bad = lambda call_id: ChatResponse("", (ToolCall(call_id, "read_file", {"path": "missing.txt"}),))
