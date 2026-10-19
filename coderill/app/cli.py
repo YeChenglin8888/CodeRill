@@ -20,8 +20,7 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.shortcuts import choice
 from prompt_toolkit.styles import Style
-from rich.console import Group
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -393,8 +392,8 @@ def _handle_command(state: State, console: Console, text: str) -> bool:
         try:
             if not rest and sys.stdin.isatty() and state.config.profiles:
                 rest = choice("选择模型配置：" if zh else "Choose a model profile:",
-                              options=[(name, f"{name} · {profile.get('provider', state.config.provider)}/"
-                                             f"{profile.get('model', state.config.model)}")
+                              options=[(name, (f"{name} · {profile.get('provider', state.config.provider)}/"
+                                              f"{profile.get('model', state.config.model)}"))
                                        for name, profile in state.config.profiles.items()])
             state.select_model(rest)
             console.print(f"[green]{'模型' if zh else 'Model'}: {state.config.provider}/{state.config.model}[/green]")

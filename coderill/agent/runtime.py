@@ -14,9 +14,9 @@ from typing import Any, Literal
 from ..config import Config
 from ..context import AsyncContextManager, ContextBudgetExceeded
 from ..hooks import Hooks
+from ..language import is_chinese
 from ..mcp import MCPManager, MCPTool, MCPToolSearch
 from ..permissions import ReviewManager
-from ..language import is_chinese
 from ..prompt import PLAN_MODE_PROMPT, system_prompt
 from ..providers.base import ChatProvider
 from ..providers.errors import ProviderError, ProviderErrorKind

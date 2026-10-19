@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "coderill"
-version = "0.1.0"
+version = "0.1.1"
 description = "A small, readable AI coding agent that reads, writes, edits and runs code from your terminal."
 readme = "README.md"
 requires-python = ">=3.10"
