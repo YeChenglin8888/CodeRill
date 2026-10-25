@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import ClassVar
 
+from ..sandbox import check_active_path
 from .base import Tool, ToolError, resolve_path
 
 # Directories that are almost never worth searching.
@@ -41,7 +42,7 @@ class GrepTool(Tool):
         if not base.exists():
             raise ToolError(f"path not found: {path}")
 
-        files = [base] if base.is_file() else _walk(base, include)
+        files = [base] if base.is_file() else _walk(base, include, self.root)
         matches: list[str] = []
         for file in files:
             for lineno, line in _search(file, regex):
@@ -52,9 +53,16 @@ class GrepTool(Tool):
         return "\n".join(matches) if matches else f"no matches for {pattern!r}"
 
 
-def _walk(root: Path, include: str | None):
+def _walk(root: Path, include: str | None, workspace: Path):
+    workspace = workspace.resolve()
     for path in sorted(root.rglob("*")):
         if path.is_dir() or any(part in _SKIP_DIRS for part in path.parts):
+            continue
+        if not path.resolve().is_relative_to(workspace):
+            continue
+        try:
+            check_active_path(path)
+        except RuntimeError:
             continue
         if include and not path.match(include):
             continue
@@ -63,6 +71,7 @@ def _walk(root: Path, include: str | None):
 
 def _search(file: Path, regex: re.Pattern):
     try:
+        check_active_path(file)
         if file.stat().st_size > MAX_FILE_BYTES:
             return
         text = file.read_text(errors="replace")

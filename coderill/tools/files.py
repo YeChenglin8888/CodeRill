@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from .. import checkpoints
+from ..sandbox import check_active_mutation
 from .base import Tool, ToolError, resolve_path
 
 MAX_READ_LINES = 2000
@@ -82,6 +83,7 @@ class WriteFileTool(Tool):
 
     def execute(self, path: str, content: str) -> str:
         target = resolve_path(self.root, path)
+        check_active_mutation(target)
         if target.is_dir():
             raise ToolError(f"{path} is a directory")
 
@@ -118,6 +120,7 @@ class EditFileTool(Tool):
 
     def execute(self, file_path: str, old_string: str, new_string: str, replace_all: bool = False) -> str:
         target = resolve_path(self.root, file_path)
+        check_active_mutation(target)
         if not target.exists():
             raise ToolError(f"file not found: {file_path}")
         if old_string == new_string:

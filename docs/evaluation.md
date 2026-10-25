@@ -2,6 +2,18 @@
 
 Keep three results separate: offline behavior tests, model task outcomes, and Harbor verifier rewards. A passing unit test checks a mechanism; it is not a task success rate.
 
+## Built-in smoke and accumulating critical sets
+
+The repository includes six short model tasks in `evals/smoke.json` and eight critical seed tasks in `evals/critical.json`. They cover extraction, aggregation, fixes, command execution, multi-file changes, edit scope, data preservation, numeric boundaries, cwd independence, config preservation, untrusted repository instructions, path containment, and atomic batch updates. The seeds are synthetic, not claims of observed production incidents.
+
+```sh
+python -m pytest tests/test_eval_datasets.py tests/test_benchmark_suite.py -q
+python -m examples.benchmark_suite evals/smoke.json --output evals/runs/smoke.json
+python -m examples.benchmark_suite evals/critical.json --output evals/runs/critical.json
+```
+
+The first command checks the fixtures and verifiers offline; the other two call the configured model. Both sets require all tasks to pass. A report is written before the runner exits nonzero on any failed, unverified, or infrastructure-error task. `pass_rate` retains the all-attempts denominator, including infrastructure errors. Reports include effective model/budget settings and case metadata; preserve the repository revision and fixture/verifier snapshots separately. See [the dataset guide](../evals/README.md) for bounded runs, case coverage, the critical-case intake template, and verification limits.
+
 ## Fixed local manifest
 
 `examples/benchmark_suite.py` copies each task workspace into a temporary directory, runs one non-interactive CodeRill turn, then runs explicit verifier commands. A task without verifiers is `unverified`, not passed. Invalid setup and verifier failures have different outcomes.

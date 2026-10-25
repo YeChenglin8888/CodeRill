@@ -6,6 +6,19 @@ permissions:
   contents: read
 
 jobs:
+  docker-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - run: docker build -f sandbox/Dockerfile --target sandbox -t coderill-sandbox:local .
+      - run: docker build -f sandbox/Dockerfile --target gateway -t coderill-sandbox-gateway:local .
+      - run: python -m pytest tests/test_sandbox_docker.py -q
+        env:
+          CODERILL_DOCKER_TEST: "1"
   test:
     strategy:
       matrix:

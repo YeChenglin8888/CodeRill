@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+
+from .sandbox import SandboxPolicy, parse_ports
 
 DEFAULT_MODEL = "gpt-4o-mini"
 
@@ -52,7 +55,24 @@ class Config:
     browser_channel: str = "msedge"
     typesafe_api_key: str = ""
     typesafe_model: str = "jev-latest"
+    jev_decisions_enabled: bool = False
     workspace: Path = field(default_factory=Path.cwd)
+    sandbox: str = "off"
+    sandbox_profile: str = "workspace-write"
+    sandbox_network: str = "restricted"
+    sandbox_image: str = "coderill-sandbox:local"
+    sandbox_ports: tuple[tuple[int, int], ...] = ()
+    deny_read_paths: tuple[str, ...] = ()
+    sandbox_cpus: float = 2.0
+    sandbox_memory: str = "2g"
+    sandbox_pids: int = 256
+
+    @cached_property
+    def sandbox_policy(self) -> SandboxPolicy:
+        return SandboxPolicy(self.workspace, backend=self.sandbox, profile=self.sandbox_profile,
+                             network=self.sandbox_network, image=self.sandbox_image, ports=self.sandbox_ports,
+                             deny_read_paths=self.deny_read_paths, cpus=self.sandbox_cpus,
+                             memory=self.sandbox_memory, pids=self.sandbox_pids)
 
     @classmethod
     def from_env(
@@ -74,13 +94,26 @@ class Config:
         else:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write(template)
+        # Project dotenv and model profiles are untrusted for sandbox settings.
+        sandbox_env = {name: os.environ.get(name) for name in (
+            "CODERILL_SANDBOX", "CODERILL_SANDBOX_PROFILE", "CODERILL_SANDBOX_NETWORK",
+            "CODERILL_SANDBOX_IMAGE", "CODERILL_SANDBOX_PORTS")}
         load_dotenv(ws / ".env")
         load_dotenv(global_env)
+        for name, original in sandbox_env.items():
+            if original is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = original
         values: dict[str, Any] = {"workspace": ws}
         profiles: dict[str, dict[str, Any]] = {}
+        sandbox_fields = {"sandbox", "sandbox_profile", "sandbox_network", "sandbox_image", "sandbox_ports",
+                          "deny_read_paths", "sandbox_cpus", "sandbox_memory", "sandbox_pids"}
         for path in (Path.home() / ".coderill" / "config.toml", ws / ".coderill.toml"):
             data = _toml(path)
-            values.update({key: value for key, value in data.items() if key in cls.__dataclass_fields__ and key != "profiles"})
+            values.update({key: value for key, value in data.items()
+                           if key in cls.__dataclass_fields__ and key not in ("profiles", "workspace")
+                           and (key not in sandbox_fields or path.parent == global_env.parent)})
             profiles.update(data.get("models", {}))
         values["profiles"] = profiles
         selected = (overrides or {}).get("profile") or os.getenv("CODERILL_PROFILE")
@@ -88,7 +121,8 @@ class Config:
             if selected not in profiles:
                 raise ValueError(f"unknown model profile '{selected}'")
             profile = profiles[selected]
-            values.update({key: value for key, value in profile.items() if key in cls.__dataclass_fields__})
+            values.update({key: value for key, value in profile.items()
+                           if key in cls.__dataclass_fields__ and key not in sandbox_fields | {"workspace"}})
             if profile.get("api_key_env"):
                 values["api_key"] = os.getenv(str(profile["api_key_env"]), "")
         env_values: dict[str, tuple[str, Any]] = {
@@ -110,8 +144,22 @@ class Config:
             if os.getenv(name) is not None:
                 values[field_name] = convert(os.environ[name])
         values["browser_enabled"] = os.getenv("CODERILL_BROWSER_ENABLED") == "1" or values.get("browser_enabled", False)
+        values["jev_decisions_enabled"] = (os.getenv("CODERILL_JEV_DECISIONS") == "1" or
+                                            values.get("jev_decisions_enabled", False))
         values["typesafe_api_key"] = os.getenv("TYPESAFE_API_KEY", values.get("typesafe_api_key", ""))
+        for field_name, name in (("sandbox", "CODERILL_SANDBOX"),
+                                 ("sandbox_profile", "CODERILL_SANDBOX_PROFILE"),
+                                 ("sandbox_network", "CODERILL_SANDBOX_NETWORK"),
+                                 ("sandbox_image", "CODERILL_SANDBOX_IMAGE")):
+            if sandbox_env[name] is not None:
+                values[field_name] = sandbox_env[name]
+        if sandbox_env["CODERILL_SANDBOX_PORTS"]:
+            values["sandbox_ports"] = parse_ports(sandbox_env["CODERILL_SANDBOX_PORTS"].split(","))
         values.update({key: value for key, value in (overrides or {}).items() if key != "profile" and value is not None})
+        if isinstance(values.get("sandbox_ports"), list):
+            values["sandbox_ports"] = parse_ports(values["sandbox_ports"])
+        if isinstance(values.get("deny_read_paths"), list):
+            values["deny_read_paths"] = tuple(values["deny_read_paths"])
         provider = values.get("provider", "openai")
         if provider not in ("openai", "anthropic"):
             raise ValueError(f"unknown provider '{provider}'")
@@ -126,4 +174,8 @@ class Config:
             key_name = "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENAI_API_KEY"
             raise RuntimeError(f"No API key found for {provider}. Add {key_name}=<your-key> to {global_env}, "
                                "or set CODERILL_API_KEY in your environment.")
-        return cls(**values)
+        config = cls(**values)
+        if config.sandbox == "docker" and workspace and Path(workspace).expanduser().is_symlink():
+            raise ValueError("sandbox workspace root cannot be a symlink")
+        _ = config.sandbox_policy  # validate before a turn can run
+        return config

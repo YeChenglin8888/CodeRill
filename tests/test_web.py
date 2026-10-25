@@ -86,6 +86,7 @@ def test_web_sessions_commands_stream_and_upload(tmp_path, monkeypatch):
             self.loop = asyncio.new_event_loop()
             self.agent = self
             self.plan = None
+            self.approved_domains = ()
             self.plan_mode = plan
             self.show_reasoning = False
             self.permission = SimpleNamespace(allow_all=auto_approve, mode=Mode.BYPASS if auto_approve else Mode.STANDARD)

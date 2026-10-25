@@ -115,8 +115,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--list", action="store_true", help="List saved sessions and exit.")
     parser.add_argument("--plan", action="store_true", help="Start in plan mode (read-only).")
     parser.add_argument("--benchmark", action="store_true", help="Require execution evidence before ending a non-interactive task.")
+    parser.add_argument("--sandbox", choices=("off", "docker"), help="Command sandbox backend.")
+    parser.add_argument("--sandbox-profile", choices=("read-only", "workspace-write"), help="Sandbox file mode.")
+    parser.add_argument("--sandbox-network", choices=("restricted", "none"), help="Sandbox network mode.")
+    parser.add_argument("--sandbox-image", help="Local Docker execution image.")
+    parser.add_argument("--sandbox-port", action="append", default=[], metavar="HOST:CONTAINER",
+                        help="Publish one configured preview port on 127.0.0.1.")
     parser.add_argument(
-        "--auto-approve", action="store_true", help="Run every tool without asking for consent."
+        "--auto-approve", action="store_true", help="Skip ordinary tool consent; sandbox network grants still require review."
     )
     parser.add_argument("--version", action="version", version=f"coderill {__version__}")
     return parser.parse_args(argv)
@@ -163,7 +169,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = Config.from_env(workspace=args.cwd, overrides={"model": args.model, "provider": args.provider,
-                                                                "benchmark": args.benchmark})
+                                                                "benchmark": args.benchmark, "sandbox": args.sandbox,
+                                                                "sandbox_profile": args.sandbox_profile,
+                                                                "sandbox_network": args.sandbox_network,
+                                                                "sandbox_image": args.sandbox_image,
+                                                                "sandbox_ports": args.sandbox_port or None})
     except (RuntimeError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         return 1
@@ -178,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
 
     state = build_state(config, session, console, auto_approve=args.auto_approve, plan=args.plan)
     try:
-        state.pending_attachments.extend(session.attach_file(path) for path in args.attach)
+        state.pending_attachments.extend(state.attach_file(path) for path in args.attach)
     except (OSError, ValueError) as exc:
         console.print(f"[red]attachment: {exc}[/red]")
         state.close()
@@ -221,6 +231,9 @@ def _run_once(state: State, prompt: str, console: Console) -> int:
                 if review["diff"]:
                     console.print(review["diff"], style="dim")
                 if not sys.stdin.isatty():
+                    if review.get("kind") == "sandbox_network":
+                        result = _run_with_feedback(state, state.agent.resume_turn(review["id"], "deny"), console)
+                        continue
                     console.print(f"[yellow]{'等待批准' if chinese else 'Approval pending'}: {review['id']}[/yellow]")
                     return 2
                 decision = _approval_choice(chinese)
@@ -272,6 +285,8 @@ def _print_welcome(state: State, console: Console) -> None:
     left.add_row(Text(f" {BRAND_MARK} ", style="bold #c5d7c7 on #3e5549"))
     left.add_row(Text(str(state.config.model), style="dim"))
     left.add_row(Text(_short(state.config.workspace, 42), style="dim"))
+    left.add_row(Text(f"sandbox: {state.config.sandbox} / {state.config.sandbox_profile} / "
+                      f"{state.config.sandbox_network}", style="dim"))
 
     right = Table.grid(expand=True)
     right.add_column()
@@ -354,7 +369,10 @@ def _handle_command(state: State, console: Console, text: str) -> bool:
         console.print(HELP_TEXT_ZH if zh else HELP_TEXT)
     elif command == "/where":
         console.print(f"{'工作目录' if zh else 'workspace'}: [cyan]{config.workspace}[/cyan]\n"
-                      f"{'会话' if zh else 'session'}: [cyan]{state.session.id}[/cyan]")
+                      f"{'会话' if zh else 'session'}: [cyan]{state.session.id}[/cyan]\n"
+                      f"sandbox: [cyan]{config.sandbox} / {config.sandbox_profile} / {config.sandbox_network}[/cyan]\n"
+                      f"approved domains: {', '.join(state.agent.approved_domains) or '(none)'}\n"
+                      "outside sandbox: hooks, MCP, browser, fetch, web_search")
     elif command == "/list":
         _print_sessions(console, zh)
     elif command == "/new":
@@ -378,7 +396,7 @@ def _handle_command(state: State, console: Console, text: str) -> bool:
         state.rebuild()
         console.print(f"[green]{'已创建分支会话' if zh else 'Forked into session'} {state.session.id}[/green]")
     elif command == "/undo":
-        console.print(checkpoints.undo())
+        console.print(checkpoints.undo(state.config.sandbox_policy))
     elif command == "/plan":
         state.plan_mode = _toggle(rest, state.plan_mode)
         state.agent.plan_mode = state.plan_mode
@@ -404,7 +422,7 @@ def _handle_command(state: State, console: Console, text: str) -> bool:
         _print_mcp(state, console)
     elif command == "/attach":
         try:
-            attachment = state.session.attach_file(rest)
+            attachment = state.attach_file(rest)
             state.pending_attachments.append(attachment)
             console.print(f"[green]{'已附加到下一条消息' if zh else 'Attached to next message'}: "
                           f"{attachment['name']}[/green]")

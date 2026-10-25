@@ -13,6 +13,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, ClassVar
 
+from ..sandbox import SandboxPolicy, check_active_path, policy_scope
+
 # Read-only tools may run without asking; mutating ones need consent.
 MAX_OUTPUT_CHARS = 30_000
 
@@ -63,9 +65,11 @@ def resolve_path(root: Path, path: str) -> Path:
     candidate = Path(path).expanduser()
     if not candidate.is_absolute():
         candidate = root / candidate
+    check_active_path(candidate)
     resolved = candidate.resolve()
     if resolved != root and root not in resolved.parents:
         raise ToolError(f"path '{path}' is outside the workspace root")
+    check_active_path(resolved)
     return resolved
 
 
@@ -82,8 +86,9 @@ def truncate(text: str) -> str:
 class Registry:
     """Holds the tools and resolves paths relative to the workspace root."""
 
-    def __init__(self, workspace: Path) -> None:
+    def __init__(self, workspace: Path, policy: SandboxPolicy | None = None) -> None:
         self.workspace = workspace.resolve()
+        self.policy = policy
         self._tools: dict[str, Tool] = {}
 
     def register(self, tool: Tool) -> None:
@@ -107,7 +112,11 @@ class Registry:
         if tool is None:
             return f"Error: unknown tool '{name}'."
         try:
-            result = tool.execute(**arguments)
+            with policy_scope(self.policy):
+                if self.policy and self.policy.enabled and self.policy.profile == "read-only" and name in (
+                    "write_file", "edit_file", "delete_path", "apply_patch"):
+                    raise ToolError("sandbox workspace is read-only")
+                result = tool.execute(**arguments)
         except ToolError as exc:
             return f"Error: {exc}"
         except TypeError as exc:

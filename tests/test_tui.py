@@ -15,6 +15,7 @@ class FakeAgent:
     def __init__(self):
         self.on_event = lambda event: None
         self.plan = TaskPlan()
+        self.approved_domains = ()
 
     async def run_turn(self, text, attachments):
         self.on_event(ChatStreamEvent("text_delta", text="thinking"))
@@ -36,6 +37,10 @@ class FakeState:
         self.session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
         self.agent = FakeAgent()
         self.pending_attachments = []
+
+    def attach_file(self, path):
+        return self.session.attach_file(path)
+
     async def close_async(self):
         pass
 

@@ -5,6 +5,8 @@
 !README.md
 !coderill/
 !coderill/**
+!sandbox/
+!sandbox/**
 !web/
 !web/package.json
 !web/package-lock.json

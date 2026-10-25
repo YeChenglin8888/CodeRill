@@ -67,6 +67,9 @@ class CodeRillApp(App):
                 yield Select([(self.state.session.id, self.state.session.id)], id="sessions", allow_blank=False)
                 yield Static("模型" if zh else "Models", id="models-label")
                 yield Select([(self.state.config.model, "current")], id="models", allow_blank=False)
+                yield Static(f"Sandbox: {self.state.config.sandbox} / {self.state.config.sandbox_profile} / "
+                             f"{self.state.config.sandbox_network}\nOutside: hooks, MCP, browser, fetch, web_search",
+                             id="sandbox-status")
                 yield Static("任务计划" if zh else "Task plan", id="plan-label", classes="heading")
                 yield Static("", id="plan", markup=False)
             with Vertical(id="main"):
@@ -112,6 +115,12 @@ class CodeRillApp(App):
             "Attached: " + ", ".join(item["name"] for item in self.state.pending_attachments)
             if self.state.pending_attachments else ""
         )
+        self.query_one("#sandbox-status", Static).update(
+            f"Sandbox: {self.state.config.sandbox} / {self.state.config.sandbox_profile} / "
+            f"{self.state.config.sandbox_network}\nDomains: "
+            f"{', '.join(self.state.agent.approved_domains) or '(none)'}\n"
+            "Outside: hooks, MCP, browser, fetch, web_search"
+        )
 
     def _show_history(self) -> None:
         log = self.query_one("#history", VerticalScroll)
@@ -152,7 +161,7 @@ class CodeRillApp(App):
         elif event.kind == "tool_started" and event.tool_call:
             self.streaming_text = ""
             self.streaming_message = None
-            self._write_history(f"[tool] {event.tool_call.name} {event.tool_call.arguments}")
+            self._write_history(f"[tool:{event.status}] {event.tool_call.name} {event.tool_call.arguments}")
         elif event.kind == "tool_result":
             self._write_history(f"[result] {event.text[:500]}")
 
@@ -169,7 +178,7 @@ class CodeRillApp(App):
             return
         if text.startswith("/attach "):
             try:
-                item = self.state.session.attach_file(Path(text[8:].strip()))
+                item = self.state.attach_file(Path(text[8:].strip()))
                 self.state.pending_attachments.append(item)
                 self._write_history(f"[attached] {item['name']}")
                 self._refresh_selectors()
@@ -179,7 +188,7 @@ class CodeRillApp(App):
         path = Path(text).expanduser()
         if "\n" not in text and path.is_file():
             try:
-                item = self.state.session.attach_file(path)
+                item = self.state.attach_file(path)
                 self.state.pending_attachments.append(item)
                 self._write_history(f"[attached] {item['name']}")
                 self._refresh_selectors()
@@ -241,6 +250,11 @@ class CodeRillApp(App):
             )
             self.query_one("#approval", Static).display = True
             self.query_one("#approval-actions", Horizontal).display = True
+            self.query_one("#always", Button).label = (
+                "本会话允许" if zh else "Allow this session"
+            ) if self.review.get("kind") == "sandbox_network" else (
+                "始终允许同类操作" if zh else "Always allow similar"
+            )
         else:
             self.review = None
             self.query_one("#approval", Static).display = False

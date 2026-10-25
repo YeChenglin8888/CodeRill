@@ -12,24 +12,27 @@ import difflib
 from pathlib import Path
 from typing import Any
 
+from .sandbox import SandboxPolicy, check_active_mutation, policy_scope
 from .tools.advanced import _apply_git, patch_targets
 from .tools.base import ToolError, resolve_path
 
 
-def build_prewrite_review(tool_name: str, arguments: dict[str, Any], root: str | Path) -> str:
+def build_prewrite_review(tool_name: str, arguments: dict[str, Any], root: str | Path,
+                          policy: SandboxPolicy | None = None) -> str:
     """A unified diff for a file write/edit, or '' when it cannot be precomputed."""
     try:
-        if tool_name == "write_file":
-            return _for_write(arguments, Path(root))
-        if tool_name == "edit_file":
-            return _for_edit(arguments, Path(root))
-        if tool_name == "delete_path":
-            return _for_delete(arguments, Path(root))
-        if tool_name == "apply_patch":
-            patch = str(arguments.get("patch", ""))
-            patch_targets(Path(root), patch)
-            _apply_git(Path(root), patch, "--check")
-            return patch[:30_000]
+        with policy_scope(policy):
+            if tool_name == "write_file":
+                return _for_write(arguments, Path(root))
+            if tool_name == "edit_file":
+                return _for_edit(arguments, Path(root))
+            if tool_name == "delete_path":
+                return _for_delete(arguments, Path(root))
+            if tool_name == "apply_patch":
+                patch = str(arguments.get("patch", ""))
+                patch_targets(Path(root), patch, policy)
+                _apply_git(Path(root), patch, "--check", policy=policy)
+                return patch[:30_000]
     except (OSError, ValueError, ToolError):
         return ""
     return ""
@@ -60,6 +63,7 @@ def _for_edit(arguments: dict[str, Any], root: Path) -> str:
 def _for_delete(arguments: dict[str, Any], root: Path) -> str:
     path = str(arguments.get("path", ""))
     target = resolve_path(root, path)
+    check_active_mutation(target)
     if target == root.resolve() or not target.exists():
         return ""
     if target.is_file():

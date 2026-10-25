@@ -35,6 +35,10 @@ def session_data(session: Session, state: State) -> dict:
         "review": session.pending_review, "plan": state.agent.plan.describe() if state.agent.plan else "",
         "planMode": state.plan_mode, "autoApprove": state.permission.allow_all,
         "mode": state.permission.mode.value, "reasoning": state.show_reasoning,
+        "sandbox": {"backend": state.config.sandbox, "profile": state.config.sandbox_profile,
+                    "network": state.config.sandbox_network,
+                    "approvedDomains": list(state.agent.approved_domains),
+                    "outside": ["hooks", "MCP", "browser", "fetch", "web_search"]},
         "profiles": [
             {"name": name, "model": profile.get("model", ""), "provider": profile.get("provider", "")}
             for name, profile in state.config.profiles.items()
@@ -258,7 +262,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 event.kind != "reasoning_delta" or state.show_reasoning
             ):
                 emit({"kind": event.kind, "text": event.text,
-                      "tool": event.tool_call.name if event.tool_call else ""})
+                      "tool": event.tool_call.name if event.tool_call else "", "status": event.status})
 
         state.agent.on_event = on_event
         try:
@@ -360,10 +364,19 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--auto-approve", action="store_true")
     parser.add_argument("--benchmark", action="store_true")
+    parser.add_argument("--sandbox", choices=("off", "docker"))
+    parser.add_argument("--sandbox-profile", choices=("read-only", "workspace-write"))
+    parser.add_argument("--sandbox-network", choices=("restricted", "none"))
+    parser.add_argument("--sandbox-image")
+    parser.add_argument("--sandbox-port", action="append", default=[])
     parser.add_argument("--version", action="version", version=f"coderill {__version__}")
     args = parser.parse_args(argv)
     config = Config.from_env(workspace=args.cwd, overrides={"model": args.model, "provider": args.provider,
-                                                        "benchmark": args.benchmark})
+                                                        "benchmark": args.benchmark, "sandbox": args.sandbox,
+                                                        "sandbox_profile": args.sandbox_profile,
+                                                        "sandbox_network": args.sandbox_network,
+                                                        "sandbox_image": args.sandbox_image,
+                                                        "sandbox_ports": args.sandbox_port or None})
     with WebServer((args.host, args.port), config, plan=args.plan,
                    auto_approve=args.auto_approve) as server:
         print(f"CodeRill web: http://127.0.0.1:{args.port}  workspace: {config.workspace}")

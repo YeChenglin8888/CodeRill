@@ -16,6 +16,7 @@ import subprocess
 from pathlib import Path
 from typing import ClassVar
 
+from ..sandbox import DockerJob, SandboxPolicy
 from .base import Tool
 
 MAX_OUTPUT_CHARS = 20_000
@@ -32,16 +33,18 @@ class BashTool(Tool):
         "properties": {
             "command": {"type": "string", "description": "Shell command to run."},
             "timeout": {"type": "integer", "description": "Seconds before the command is killed. Default 120."},
+            "network_domains": {"type": "array", "items": {"type": "string"}},
         },
         "required": ["command"],
     }
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, policy: SandboxPolicy | None = None) -> None:
         self.root = root
+        self.policy = policy
 
-    def execute(self, command: str, timeout: int = 120) -> str:
+    def execute(self, command: str, timeout: int = 120, network_domains: list[str] | None = None) -> str:
         try:
-            proc = _run(command, self.root, timeout)
+            proc = _run(command, self.root, timeout, self.policy, tuple(network_domains or ()))
         except subprocess.TimeoutExpired:
             return f"Error: command timed out after {timeout}s"
 
@@ -57,8 +60,13 @@ class BashTool(Tool):
         return f"exit code: {proc.returncode}\n{output}"
 
 
-def _run(command: str, cwd: Path, timeout: int) -> subprocess.CompletedProcess:
+def _run(command: str, cwd: Path, timeout: int, policy: SandboxPolicy | None = None,
+         network_domains: tuple[str, ...] = ()) -> subprocess.CompletedProcess:
     """Run ``command`` in the right shell for this platform."""
+    if policy and policy.enabled:
+        result = DockerJob(policy, extra_domains=network_domains).run(["bash", "-lc", command], timeout=timeout)
+        return subprocess.CompletedProcess(command, result.returncode, result.stdout.decode(errors="replace"),
+                                           result.stderr.decode(errors="replace"))
     shell = _git_bash()
     if shell:
         command = _DRIVE.sub(lambda m: f"/{m.group(1).lower()}/", command).replace("\\", "/")

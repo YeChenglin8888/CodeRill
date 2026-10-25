@@ -231,8 +231,8 @@ class Session:
         self._append({"type": "review_resolved", "request_id": request_id, "decision": decision})
         self.pending_review = None
 
-    def start_tool(self, call: dict) -> None:
-        self._append({"type": "tool_started", "call": call})
+    def start_tool(self, call: dict, boundary: str = "") -> None:
+        self._append({"type": "tool_started", "call": call, "boundary": boundary})
         self.incomplete_calls[call["id"]] = call
 
     def finish_tool(self, call_id: str, status: str, content: str) -> None:

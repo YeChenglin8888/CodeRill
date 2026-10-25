@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from ..config import Config
+from ..hooks import Hooks
 from ..permissions import Mode, ReviewManager
 from ..providers import create_provider
 from ..runtime import BackgroundTaskManager
 from ..session import Session
+from ..skills import SkillCatalog
 from ..taskplan import TaskPlan
 from ..tools import Registry
 from ..tools.advanced import ApplyPatchTool, DeletePathTool, DiagnosticsTool, ReadMultiTool
@@ -33,16 +35,28 @@ class SubagentService:
         *,
         provider_factory: Callable[[Config], Any] = create_provider,
         plan: TaskPlan | None = None,
+        hooks: Hooks | None = None,
+        skills: SkillCatalog | None = None,
+        harness_overlay: str = "",
+        harness_roles: dict[str, str] | None = None,
     ) -> None:
         self.config = config
         self.parent = parent
         self.provider_factory = provider_factory
         self.plan = plan
+        self.hooks = hooks
+        self.skills = skills
+        self.harness_overlay = harness_overlay
+        self.harness_roles = harness_roles or {}
         self.background = BackgroundTaskManager(parent)
         self.children: dict[str, AgentRuntime] = {}
 
     async def delegate(self, task: str, *, allow_write: bool = False, background: bool = False,
-                       plan_task_id: str | None = None) -> str:
+                       plan_task_id: str | None = None, harness_role: str | None = None) -> str:
+        if harness_role is not None and harness_role not in self.harness_roles:
+            raise ValueError(f"unknown harness subagent role {harness_role!r}")
+        if allow_write and self.config.sandbox_policy.enabled:
+            raise ValueError("writable child agents are unavailable in Docker sandbox mode")
         if plan_task_id is not None and not background:
             raise ValueError("plan_task_id requires background delegation")
         if plan_task_id is not None and (self.plan is None or
@@ -53,24 +67,30 @@ class SubagentService:
         if allow_write:
             child.set_workspace(str(workspace))
         child_config = replace(self.config, workspace=workspace, max_turns=min(self.config.max_turns, 10))
-        registry = Registry(workspace)
+        policy = child_config.sandbox_policy
+        registry = Registry(workspace, policy)
         for tool in (ReadFileTool(workspace), ReadMultiTool(workspace), GlobTool(workspace), GrepTool(workspace),
-                     GitStatusTool(workspace), GitDiffTool(workspace), GitLogTool(workspace), ArchiveReadTool(child)):
+                     GitStatusTool(workspace, policy), GitDiffTool(workspace, policy), GitLogTool(workspace, policy),
+                     ArchiveReadTool(child)):
             registry.register(tool)
         if allow_write:
             registry.register(WriteFileTool(workspace))
             registry.register(EditFileTool(workspace))
-            registry.register(ApplyPatchTool(workspace))
+            registry.register(ApplyPatchTool(workspace, policy))
             registry.register(DeletePathTool(workspace))
-            registry.register(DiagnosticsTool(workspace))
+            registry.register(DiagnosticsTool(workspace, policy))
         runtime = AgentRuntime(
             child_config, child, registry, self.provider_factory(child_config),
-            ReviewManager(workspace, mode=Mode.AGGRESSIVE),
+            ReviewManager(workspace, mode=Mode.AGGRESSIVE, policy=policy),
+            hooks=self.hooks, skills=self.skills,
         )
+        runtime.harness_overlay = self.harness_overlay + (
+            f"\n\n# Assigned subagent role: {harness_role}\n{self.harness_roles[harness_role]}"
+            if harness_role is not None else "")
         self.children[child.id] = runtime
         self.parent.record_subagent({
             "id": child.id, "workspace": str(workspace), "allow_write": allow_write,
-            "applied": False, "task": task,
+            "applied": False, "task": task, "harness_role": harness_role,
         })
 
         async def work() -> str:
@@ -113,6 +133,8 @@ class SubagentService:
         return path
 
     async def preview_apply(self, child_id: str) -> str:
+        if self.config.sandbox_policy.enabled:
+            raise ValueError("writable child worktrees cannot be applied in Docker sandbox mode")
         child = self.parent.subagents[child_id]
         if not child["allow_write"] or child["applied"]:
             raise ValueError("child has no unapplied worktree changes")
@@ -126,6 +148,8 @@ class SubagentService:
         return diff.stdout.decode(errors="replace")
 
     async def apply(self, child_id: str, reviewed_diff: str) -> str:
+        if self.config.sandbox_policy.enabled:
+            raise ValueError("writable child worktrees cannot be applied in Docker sandbox mode")
         actual = await self.preview_apply(child_id)
         if actual != reviewed_diff:
             raise ValueError("worktree changed since review; inspect a new diff")

@@ -11,6 +11,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from .sandbox import SandboxPolicy, check_active_mutation, policy_scope
+
 # (path, prior bytes, digest immediately after our write)
 _stack: list[tuple[Path, bytes | None, str | None]] = []
 
@@ -45,11 +47,13 @@ def seal_many(paths: list[Path]) -> None:
         _stack[index - len(paths)] = (path, before, _digest(path))
 
 
-def undo() -> str:
+def undo(policy: SandboxPolicy | None = None) -> str:
     """Restore the most recent checkpoint, or report that there is nothing to undo."""
     if not _stack:
         return "nothing to undo"
     path, previous, after = _stack[-1]
+    with policy_scope(policy):
+        check_active_mutation(path)
     if after is None or _digest(path) != after:
         return f"refused to undo {path.name}: file changed since CodeRill wrote it"
     _stack.pop()

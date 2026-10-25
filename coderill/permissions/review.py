@@ -8,14 +8,17 @@ from pathlib import Path
 from typing import Any
 
 from ..review import build_prewrite_review
+from ..sandbox import SandboxPolicy, check_active_path, policy_scope
 from ..tools.advanced import patch_targets
 from ..tools.base import Tool, resolve_path
 from .policy import GrantStore, Mode, Request, classify, default_scope
 
 
 class ReviewManager:
-    def __init__(self, workspace: Path, *, mode: Mode = Mode.STANDARD, store: GrantStore | None = None) -> None:
+    def __init__(self, workspace: Path, *, mode: Mode = Mode.STANDARD, store: GrantStore | None = None,
+                 policy: SandboxPolicy | None = None) -> None:
         self.workspace = workspace.resolve()
+        self.policy = policy
         self.mode = mode
         self.store = store or GrantStore()
 
@@ -33,7 +36,8 @@ class ReviewManager:
             return None
         name = call["name"]
         args = call["arguments"]
-        targets = self._targets(name, args)
+        with policy_scope(self.policy):
+            targets = self._targets(name, args)
         target = targets[0] if len(targets) == 1 else None
         permission = classify(name, args, str(self.workspace)) or Request(name, "tool", "", str(self.workspace))
         if target is not None and permission.action == "filesystem":
@@ -47,8 +51,9 @@ class ReviewManager:
     def refresh(self, review: dict[str, Any]) -> dict[str, Any] | None:
         """A changed file invalidates the old review and gets a fresh id and diff."""
         call = review["call"]
-        targets = self._targets(call["name"], call["arguments"])
-        current = {str(target): self._digest(target) for target in targets}
+        with policy_scope(self.policy):
+            targets = self._targets(call["name"], call["arguments"])
+            current = {str(target): self._digest(target) for target in targets}
         saved = review.get("targets", {review["target"]: review["digest"]} if review.get("target") else {})
         if current == saved:
             return None
@@ -67,19 +72,20 @@ class ReviewManager:
 
     def _build(self, call: dict[str, Any], targets: list[Path]) -> dict[str, Any]:
         target = targets[0] if len(targets) == 1 else None
-        return {
-            "id": uuid.uuid4().hex,
-            "call": call,
-            "target": str(target or ""),
-            "digest": self._digest(target),
-            "targets": {str(item): self._digest(item) for item in targets},
-            "diff": build_prewrite_review(call["name"], call["arguments"], self.workspace),
-            "workspace": str(self.workspace),
-        }
+        with policy_scope(self.policy):
+            return {
+                "id": uuid.uuid4().hex,
+                "call": call,
+                "target": str(target or ""),
+                "digest": self._digest(target),
+                "targets": {str(item): self._digest(item) for item in targets},
+                "diff": build_prewrite_review(call["name"], call["arguments"], self.workspace, self.policy),
+                "workspace": str(self.workspace),
+            }
 
     def _targets(self, name: str, arguments: dict[str, Any]) -> list[Path]:
         if name == "apply_patch":
-            return patch_targets(self.workspace, str(arguments["patch"]))
+            return patch_targets(self.workspace, str(arguments["patch"]), self.policy)
         if name in ("write_file", "delete_path"):
             return [resolve_path(self.workspace, str(arguments["path"]))]
         if name == "edit_file":
@@ -93,9 +99,11 @@ class ReviewManager:
         if not target.exists():
             return "missing"
         if target.is_file():
+            check_active_path(target)
             return hashlib.sha256(target.read_bytes()).hexdigest()
         digest = hashlib.sha256()
         for item in sorted(target.rglob("*")):
+            check_active_path(item)
             digest.update(item.relative_to(target).as_posix().encode())
             if item.is_symlink():
                 digest.update(str(item.readlink()).encode())

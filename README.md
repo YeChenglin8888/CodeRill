@@ -4,7 +4,7 @@ CodeRill is an open-source Python coding agent you can run in your terminal. Giv
 
 Long tasks are its focus: CodeRill records each step in an append-only session log, asks for review before changing files, manages context limits, and can resume after an interruption. The CLI and optional Textual interface share the same async runtime.
 
-[中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Evaluation](docs/evaluation.md) · [Implementation status](docs/implementation-status.md)
+[中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Evaluation](docs/evaluation.md) · [Harness² refinement](docs/harness2.md) · [Implementation status](docs/implementation-status.md)
 
 ## Quick start with pipx
 
@@ -23,6 +23,18 @@ Run docker compose up -d --build --wait from the checkout and open http://127.0.
 Run python scripts/check_docker.py --recreate when the demo has no active Agent task to verify persistence across container replacement, without calling a model. See the [deployment and interview guide](docs/docker-deployment.md) for configuration and the single-user scope.
 
 ## Install and run
+
+### Optional Docker sandbox (source checkout)
+
+Sandboxing is off by default. Build both local images and start Docker before enabling it:
+
+```bash
+docker build -f sandbox/Dockerfile --target sandbox -t coderill-sandbox:local .
+docker build -f sandbox/Dockerfile --target gateway -t coderill-sandbox-gateway:local .
+coderill --cwd /path/to/project --sandbox docker "run tests"
+```
+
+The Docker backend confines Shell, diagnostics, Git, and background processes to the selected workspace. It allows HTTPS to npm and PyPI domains by default; additional `host:443` targets require a one-command or active-session review. Use `--sandbox-profile read-only` or `--sandbox-network none` to tighten access. Configure protected workspace paths in `~/.coderill/config.toml`, for example `deny_read_paths = [".env"]`. For a local dev server, configure `--sandbox-port 5173:5173` and request `ports: [5173]` when starting the background process. Failures never retry a command on the host. File tools use application-level path checks; hooks, MCP, browser and existing web tools run outside this command sandbox. Windows Docker Desktop still needs a live validation pass for Unicode paths, sensitive-file masks and preview forwarding.
 
 Python 3.10 or newer is required. For a local checkout:
 
@@ -88,7 +100,7 @@ See [architecture.md](docs/architecture.md) for the request sequence, approval s
 
 Built-in tools read, batch-read, write, edit, patch, and delete workspace files; search by filename and content; inspect Git status, diffs, and history; run shell commands and diagnostics; fetch public pages and search the web; manage a task plan; load skills on demand; retrieve archived output; and delegate bounded tasks. File paths are constrained to the workspace. Patches and deletion require review even in aggressive mode. Network tools reject local or private addresses and do not follow redirects. Shell and diagnostic commands have timeout, cancellation, and output limits.
 
-Optional MCP uses the official Python SDK for stdio and Streamable HTTP servers. Server configuration is read from `~/.coderill/mcp.json`. The optional Jev browser tool needs an OpenAI-compatible model, `pip install -e ".[browser]"`, `CODERILL_BROWSER_ENABLED=1`, and `TYPESAFE_*` settings. Its DOM reader is adapted from `browser-use/jev-ultrafast`; see [the retained license notice](coderill/browser_NOTICE.txt).
+Optional MCP uses the official Python SDK for stdio and Streamable HTTP servers. Server configuration is read from `~/.coderill/mcp.json`. Jev can also make typed choices in ordinary coding sessions: install `.[jev]`, set `TYPESAFE_API_KEY` and `CODERILL_JEV_DECISIONS=1`, then use the `jev_decide` tool when a fixed set of alternatives needs ranking. [Harness² refinement](docs/harness2.md) can use Jev to select the final artifact with `--decision-model jev`. The browser tool remains optional via `.[browser]` and `CODERILL_BROWSER_ENABLED=1`; its DOM reader is adapted from `browser-use/jev-ultrafast` and retains [its license notice](coderill/browser_NOTICE.txt).
 
 ## Offline verification
 

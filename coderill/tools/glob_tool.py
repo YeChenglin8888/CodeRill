@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import ClassVar
 
+from ..sandbox import check_active_path
 from .base import Tool, ToolError, resolve_path
 
 MAX_RESULTS = 500
@@ -33,7 +34,18 @@ class GlobTool(Tool):
         if not base.is_dir():
             raise ToolError(f"{path} is not a directory")
 
-        matches = [p for p in base.glob(pattern) if p.is_file() and ".git" not in p.parts]
+        matches = []
+        workspace = self.root.resolve()
+        for p in base.glob(pattern):
+            if not p.is_file() or ".git" in p.parts:
+                continue
+            if not p.resolve().is_relative_to(workspace):
+                continue
+            try:
+                check_active_path(p)
+            except RuntimeError:
+                continue
+            matches.append(p)
         matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         if not matches:
             return f"no files match {pattern!r}"

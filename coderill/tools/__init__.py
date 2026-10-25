@@ -34,15 +34,16 @@ def build_registry(
     The optional browser tool needs an enabled OpenAI-compatible model client.
     """
     root = Path(workspace)
-    registry = Registry(root)
+    policy = config.sandbox_policy if config is not None else None
+    registry = Registry(root, policy)
     registry.register(ReadFileTool(root))
     registry.register(WriteFileTool(root))
     registry.register(EditFileTool(root))
-    registry.register(BashTool(root))
+    registry.register(BashTool(root, policy))
     registry.register(GlobTool(root))
     registry.register(GrepTool(root))
-    for tool in (ReadMultiTool(root), GitStatusTool(root), GitDiffTool(root), GitLogTool(root),
-                 DiagnosticsTool(root), ApplyPatchTool(root), DeletePathTool(root), FetchTool(), WebSearchTool()):
+    for tool in (ReadMultiTool(root), GitStatusTool(root, policy), GitDiffTool(root, policy), GitLogTool(root, policy),
+                 DiagnosticsTool(root, policy), ApplyPatchTool(root, policy), DeletePathTool(root), FetchTool(), WebSearchTool()):
         registry.register(tool)
     registry.register(TodoWriteTool())
 
@@ -50,6 +51,11 @@ def build_registry(
         from .browser import BrowserTaskTool
 
         registry.register(BrowserTaskTool(llm, config))
+
+    if config is not None and config.jev_decisions_enabled:
+        from .decision import JevDecisionTool
+
+        registry.register(JevDecisionTool(config.typesafe_api_key, config.typesafe_model))
 
     for tool in extra_tools or ():
         registry.register(tool)

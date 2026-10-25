@@ -31,7 +31,8 @@ def test_rebuild_uses_freshly_loaded_session_projection(tmp_path, monkeypatch):
 
 
 def test_model_switch_is_shared_and_keeps_old_state_on_failure(tmp_path, monkeypatch):
-    config = Config(api_key="unused", workspace=tmp_path, benchmark=True)
+    config = Config(api_key="unused", workspace=tmp_path, benchmark=True, sandbox="docker",
+                    sandbox_network="none")
     session = Session.new("old", str(tmp_path), SessionStore(tmp_path / "sessions"))
     state = State(config, session, Console(), object(), ReviewManager(tmp_path, mode=Mode.BYPASS), Hooks([], []))
     monkeypatch.setattr("coderill.app.state.create_provider", lambda config: object())
@@ -44,6 +45,8 @@ def test_model_switch_is_shared_and_keeps_old_state_on_failure(tmp_path, monkeyp
         state.select_model("other")
         assert state.config.model == session.model == "new"
         assert state.config.benchmark
+        assert state.config.sandbox == "docker"
+        assert state.config.sandbox_network == "none"
         old_agent = state.agent
         monkeypatch.setattr("coderill.app.state.create_provider", lambda config: (_ for _ in ()).throw(ValueError("bad")))
         try:

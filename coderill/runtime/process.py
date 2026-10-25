@@ -9,6 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..sandbox import DockerJob, SandboxError, SandboxPolicy
 from ..tools.shell import _DRIVE, _git_bash
 
 OUTPUT_LIMIT = 20_000
@@ -22,7 +23,38 @@ class ProcessResult:
 
 
 class ProcessManager:
-    async def run(self, command: str, cwd: Path, timeout: int, cancel: asyncio.Event) -> ProcessResult:
+    def __init__(self, policy: SandboxPolicy | None = None) -> None:
+        self.policy = policy
+
+    async def run(self, command: str, cwd: Path, timeout: int, cancel: asyncio.Event,
+                  network_domains: tuple[str, ...] = ()) -> ProcessResult:
+        if self.policy and self.policy.enabled:
+            job = DockerJob(self.policy, extra_domains=network_domains)
+            operation = asyncio.create_task(asyncio.to_thread(job.run, ["bash", "-lc", command], timeout=timeout + 30))
+            cancelled = asyncio.create_task(cancel.wait())
+            try:
+                done, _ = await asyncio.wait({operation, cancelled}, timeout=max(timeout, 1),
+                                             return_when=asyncio.FIRST_COMPLETED)
+                if operation in done:
+                    try:
+                        result = operation.result()
+                    except SandboxError as exc:
+                        return ProcessResult(None, f"Error: {exc}", "failed")
+                    body = (result.stdout + (b"\n[stderr]\n" + result.stderr if result.stderr else b""))
+                    return ProcessResult(result.returncode, body[:OUTPUT_LIMIT].decode(errors="replace") or "(no output)",
+                                         "success" if result.returncode == 0 else "failed")
+                clean = job.close()
+                await asyncio.gather(operation, return_exceptions=True)
+                message = "sandbox command cancelled" if cancelled in done else "sandbox command timed out"
+                if not clean:
+                    message += f"; cleanup pending for job {job.id}"
+                return ProcessResult(None, message, "interrupted" if cancelled in done else "timeout")
+            except asyncio.CancelledError:
+                job.close()
+                await asyncio.gather(operation, return_exceptions=True)
+                raise
+            finally:
+                cancelled.cancel()
         shell = _git_bash()
         options = {"cwd": cwd, "stdout": asyncio.subprocess.PIPE, "stderr": asyncio.subprocess.PIPE}
         if os.name == "nt":

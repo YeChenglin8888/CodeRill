@@ -14,16 +14,19 @@ if TYPE_CHECKING:
 class ProcessStartTool(Tool):
     name = "process_start"
     description = "Start a long-running local command and save stdout/stderr to session logs."
-    parameters: ClassVar[dict] = {"type": "object", "properties": {"command": {"type": "string"}},
+    parameters: ClassVar[dict] = {"type": "object", "properties": {"command": {"type": "string"},
+                                   "network_domains": {"type": "array", "items": {"type": "string"}},
+                                   "ports": {"type": "array", "items": {"type": "integer"}}},
                                    "required": ["command"]}
 
     def __init__(self, manager: ServiceProcessManager) -> None:
         self.manager = manager
 
-    def execute(self, command: str) -> str:
+    def execute(self, command: str, network_domains: list[str] | None = None,
+                ports: list[int] | None = None) -> str:
         if not command.strip():
             raise ToolError("command must not be blank")
-        return json.dumps(self.manager.start(command))
+        return json.dumps(self.manager.start(command, tuple(network_domains or ()), tuple(ports or ())))
 
 
 class ProcessStatusTool(Tool):

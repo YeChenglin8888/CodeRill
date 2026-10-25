@@ -1,0 +1,68 @@
+[
+  {
+    "id": "smoke-001-read",
+    "workspace": "cases/smoke-001-read",
+    "category": "read-and-write",
+    "source": "synthetic: configuration extraction",
+    "failure_mode": "Misread nested configuration or change the input file.",
+    "expected": "service.json contains exactly name, port, debug from settings.json; input is unchanged.",
+    "editable": ["service.json"],
+    "prompt": "读取 settings.json，创建 service.json，只含 name、port、debug 三个字段，值分别取自 service.name、service.port、debug。保持原始类型，不修改 settings.json。执行一个检查验证生成的 JSON。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-001-read"]]
+  },
+  {
+    "id": "smoke-002-pagination",
+    "workspace": "cases/smoke-002-pagination",
+    "category": "bug-fix",
+    "source": "synthetic: one-based pagination",
+    "failure_mode": "Off-by-one page slicing or missing invalid-input checks.",
+    "expected": "One-based pages, empty/out-of-range pages, and ValueError for non-positive page/size.",
+    "editable": ["pagination.py"],
+    "prompt": "修复 pagination.py 的 paginate：page 从 1 开始，page 或 page_size 小于等于 0 时抛出 ValueError；空输入或超出末页返回空列表，不改变输入。只改实现，运行涵盖边界的自检。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-002-pagination"]]
+  },
+  {
+    "id": "smoke-003-jsonl",
+    "workspace": "cases/smoke-003-jsonl",
+    "category": "command-line",
+    "source": "synthetic: streaming JSONL input",
+    "failure_mode": "Treat JSONL as a JSON array, pollute stdout, or silently accept malformed records.",
+    "expected": "One JSON object on stdout with count/total, blank lines ignored, malformed JSON exits nonzero.",
+    "editable": ["summarize.py"],
+    "prompt": "修复 summarize.py 命令行程序：stdin 每个非空行是一个带整数 quantity 的 JSON 对象，跳过空行；stdout 只输出一个含 count（记录数）和 total（quantity 总和）的 JSON 对象。空输入输出两个 0，格式错误的 JSON 必须非零退出。支持中文输入。运行命令验证正常、空输入和错误输入。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-003-jsonl"]]
+  },
+  {
+    "id": "smoke-004-rename",
+    "workspace": "cases/smoke-004-rename",
+    "category": "multi-file-change",
+    "source": "synthetic: public function rename and callers",
+    "failure_mode": "Rename a definition but leave a stale import/caller, or rewrite tests to pass.",
+    "expected": "prices.subtotal replaces prices.total, checkout still works, original test unchanged and passes.",
+    "editable": ["prices.py", "checkout.py"],
+    "prompt": "将 prices.py 中的 total 重命名为 subtotal，不保留 total 别名，更新所有生产代码调用方，保持 checkout 的原有行为。不要修改 test_checkout.py。运行现有 unittest 测试并检查新的导出名。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-004-rename"]]
+  },
+  {
+    "id": "smoke-005-aggregate",
+    "workspace": "cases/smoke-005-aggregate",
+    "category": "data-aggregation",
+    "source": "synthetic: CSV aggregation into a JSON artifact",
+    "failure_mode": "Skip a row, treat negative or zero quantities incorrectly, or change the source CSV.",
+    "expected": "report.json contains row count 5 and exact integer totals per category; sales.csv is unchanged.",
+    "editable": ["report.json"],
+    "prompt": "读取 sales.csv，创建 report.json，格式恰好为 {\"count\": 行数, \"totals\": {类别: quantity 总和}}。数据行共 5 行，负数和 0 也计入；保留中文类别，数值必须是整数，不修改 sales.csv。运行检查确认汇总结果。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-005-aggregate"]]
+  },
+  {
+    "id": "smoke-006-search",
+    "workspace": "cases/smoke-006-search",
+    "category": "test-driven-fix",
+    "source": "synthetic: filtering and sorting user records",
+    "failure_mode": "Filter only by active status, ignore prefix or whitespace, or mutate caller records.",
+    "expected": "active_names returns sorted stripped names matching a case-insensitive prefix, without changing input.",
+    "editable": ["users.py"],
+    "prompt": "修复 users.py 的 active_names(users, prefix)：只返回 active 为 True 的用户姓名；先去掉姓名首尾空白，再按不区分大小写的前缀筛选，结果按姓名排序。不得修改传入的记录，支持空列表和中文。只改 users.py，运行现有 unittest 并补充自检。",
+    "verify": [["{python}", "{manifest_dir}/verify.py", "smoke-006-search"]]
+  }
+]

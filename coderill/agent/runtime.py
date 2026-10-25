@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -31,6 +32,7 @@ from ..providers.types import (
     ToolResult,
 )
 from ..runtime import ProcessManager
+from ..sandbox import DEFAULT_DOMAINS, SandboxError, reset_network_grant, set_network_grant
 from ..session import Session
 from ..skills import SkillCatalog
 from ..taskplan import TaskPlan
@@ -72,17 +74,26 @@ class AgentRuntime:
         self.skills = skills
         self.plan = plan
         self.plan_mode = False
+        self.harness_overlay = ""
         self.mcp = mcp
         self.collect_background = collect_background
         self.on_event = on_event or (lambda _event: None)
         self._cancel = asyncio.Event()
         self._turn_deadline = 0.0
-        self.processes = ProcessManager()
+        self.processes = ProcessManager(config.sandbox_policy)
         self.context = AsyncContextManager(config.max_context_tokens, reserve=config.max_tokens)
         self._failures: dict[str, int] = {}
         self._blocked_calls: set[str] = set()
         self._needs_validation = False
         self._evidence_retries = 0
+        self._network_session_grants: set[tuple[str, tuple[str, ...]]] = set()
+        self._network_once: dict[str, tuple[str, tuple[str, ...]]] = {}
+
+    @property
+    def approved_domains(self) -> tuple[str, ...]:
+        policy = self.config.sandbox_policy
+        granted = (domain for key, domains in self._network_session_grants if key == policy.key for domain in domains)
+        return tuple(sorted({*policy.domains(), *granted})) if policy.enabled else ()
 
     async def run_turn(self, text: str, attachments: list[dict[str, Any]] | None = None) -> TurnResult:
         with self.session.store.driver_lock(self.session.id):
@@ -100,6 +111,7 @@ class AgentRuntime:
             self._cancel = asyncio.Event()
             self._failures.clear()
             self._blocked_calls.clear()
+            self._network_once.clear()
             self._needs_validation = False
             self._evidence_retries = 0
             self._turn_deadline = time.monotonic() + self.config.max_turn_seconds
@@ -131,7 +143,13 @@ class AgentRuntime:
             if review is not None:
                 if request_id != review["id"] or decision not in ("approve", "always", "deny"):
                     return TurnResult("waiting", review=review, error="a current review id and decision are required")
-                if decision != "deny":
+                if review.get("kind") == "sandbox_network" and decision != "deny":
+                    policy = self.config.sandbox_policy
+                    if review.get("policy_key") != policy.key or review.get("workspace") != str(policy.workspace):
+                        self.session.resolve_review(request_id, "stale")
+                        self.session.set_status("running")
+                        return await self._drive()
+                if decision != "deny" and review.get("kind") != "sandbox_network":
                     refreshed = self.reviews.refresh(review)
                     if refreshed is not None:
                         self.session.resolve_review(request_id, "stale")
@@ -139,11 +157,17 @@ class AgentRuntime:
                         self.session.set_status("waiting")
                         return TurnResult("waiting", review=refreshed, error="file changed; review the new diff")
                 self.session.resolve_review(request_id, decision)
-                if decision == "always":
+                if decision == "always" and review.get("kind") != "sandbox_network":
                     self.reviews.remember(review)
                 call = review["call"]
                 if decision == "deny":
                     self._record_result(call["id"], "denied", "refused: the user declined this tool")
+                elif review.get("kind") == "sandbox_network":
+                    domains = tuple(review["domains"])
+                    if decision == "always":
+                        self._network_session_grants.add((self.config.sandbox_policy.key, domains))
+                    else:
+                        self._network_once[call["id"]] = (self.config.sandbox_policy.key, domains)
                 else:
                     try:
                         await self._run_tool(call)
@@ -308,6 +332,8 @@ class AgentRuntime:
             if reconcile:
                 system += ("\nBefore ending, reconcile unfinished tasks with actual tool results. "
                            "Continue work if feasible or explain why each remains unfinished.")
+        if self.harness_overlay:
+            system += "\n\n# Task-local harness guidance\n" + self.harness_overlay
         if self.plan_mode:
             system += PLAN_MODE_PROMPT
         messages = [ChatMessage("system", system)]
@@ -399,6 +425,15 @@ class AgentRuntime:
                 self._record_result(call["id"], "denied", f"refused by pre hook: {veto}")
                 continue
             try:
+                network_review = self._network_review(call)
+            except SandboxError as exc:
+                self._record_result(call["id"], "denied", f"refused by sandbox policy: {exc}")
+                continue
+            if network_review is not None:
+                self.session.request_review(network_review)
+                self.on_event(ChatStreamEvent("review_requested", review=network_review))
+                return network_review
+            try:
                 review = self.reviews.request(tool, call)
             except Exception as exc:  # noqa: BLE001 - invalid paths become tool errors
                 self._record_result(call["id"], "failed", f"Error: {exc}")
@@ -410,6 +445,22 @@ class AgentRuntime:
             await self._run_tool(call)
         await self._run_reads(reads)
         return None
+
+    def _network_review(self, call: dict[str, Any]) -> dict[str, Any] | None:
+        policy = self.config.sandbox_policy
+        if not policy.enabled or call["name"] not in ("bash", "diagnostics", "process_start"):
+            return None
+        requested = tuple(dict.fromkeys(call["arguments"].get("network_domains") or ()))
+        policy.domains(requested)
+        extra = tuple(domain for domain in requested if domain not in DEFAULT_DOMAINS)
+        grant = (policy.key, extra)
+        if not extra or grant in self._network_session_grants or self._network_once.get(call["id"]) == grant:
+            return None
+        return {"id": uuid.uuid4().hex, "kind": "sandbox_network", "call": call,
+                "target": "", "digest": "", "targets": {}, "workspace": str(policy.workspace),
+                "domains": list(extra), "policy_key": policy.key,
+                "diff": "Allow HTTPS access to: " + ", ".join(extra) +
+                "\nScope: this command (approve) or this active session (always)."}
 
     async def _run_reads(self, calls: list[dict[str, Any]]) -> None:
         if not calls:
@@ -423,8 +474,9 @@ class AgentRuntime:
             if error:
                 self._record_result(call["id"], "denied" if error.startswith("refused") else "failed", error)
             else:
-                self.session.start_tool(call)
-                self.on_event(ChatStreamEvent("tool_started", tool_call=ToolCall(**call)))
+                boundary = self._boundary(call["name"])
+                self.session.start_tool(call, boundary)
+                self.on_event(ChatStreamEvent("tool_started", tool_call=ToolCall(**call), status=boundary))
         active = [call for call in calls if call["id"] in self.session.incomplete_calls]
         results = await asyncio.gather(
             *(asyncio.to_thread(self.registry.dispatch, call["name"], call["arguments"]) for call in active),
@@ -436,12 +488,26 @@ class AgentRuntime:
             if call["name"] == "mcp_tool_search" and status == "success":
                 names = [item["name"] for item in json.loads(content)["matches"]]
                 self.session.activate_mcp_tools(names)
-            self.hooks.run_post(call["name"], call["arguments"], content)
+            amended = self.hooks.run_post(call["name"], call["arguments"], content)
+            if amended is not None:
+                content = amended
             self._record_result(call["id"], status, content)
 
     async def _run_tool(self, call: dict[str, Any]) -> None:
-        self.session.start_tool(call)
-        self.on_event(ChatStreamEvent("tool_started", tool_call=ToolCall(**call)))
+        try:
+            missing_network_grant = self._network_review(call) is not None
+        except SandboxError as exc:
+            self._record_result(call["id"], "denied", f"refused by sandbox policy: {exc}")
+            return
+        if missing_network_grant:
+            self._record_result(call["id"], "denied", "refused: sandbox network grant is missing")
+            return
+        grant = tuple(call["arguments"].get("network_domains") or ())
+        network_token = set_network_grant(grant)
+        self._network_once.pop(call["id"], None)
+        boundary = self._boundary(call["name"])
+        self.session.start_tool(call, boundary)
+        self.on_event(ChatStreamEvent("tool_started", tool_call=ToolCall(**call), status=boundary))
         before = self.plan.revision if self.plan is not None else None
         try:
             if call["name"] in ("bash", "diagnostics"):
@@ -452,7 +518,7 @@ class AgentRuntime:
                     return
                 process = await self.processes.run(args["command"], self.config.workspace,
                                                    min(timeout, max(1, self._turn_deadline - time.monotonic())),
-                                                   self._cancel)
+                                                   self._cancel, tuple(args.get("network_domains") or ()))
                 result = f"exit code: {process.returncode}\n{process.output}"
                 if process.status != "success":
                     status = "interrupted" if process.status == "interrupted" else "failed"
@@ -482,10 +548,15 @@ class AgentRuntime:
         else:
             if self.plan is not None and self.plan.revision != before:
                 self.session.record_plan(self.plan.snapshot())
-            self.hooks.run_post(call["name"], call["arguments"], result)
+            amended = self.hooks.run_post(call["name"], call["arguments"], result)
+            if amended is not None:
+                result = amended
             self._record_result(call["id"], "failed" if result.startswith("Error:") else "success", result)
+        finally:
+            reset_network_grant(network_token)
 
     def _record_result(self, call_id: str, status: str, content: str) -> None:
+        self._network_once.pop(call_id, None)
         call = next((item for item in self._pending_calls() if item["id"] == call_id), None)
         if self.config.benchmark and call is not None:
             key = _call_key(call)
@@ -510,6 +581,18 @@ class AgentRuntime:
         self.session.record({"role": "tool", "tool_call_id": result.call_id, "content": result.content})
         self.on_event(ChatStreamEvent("tool_result", text=result.content,
                                       tool_call=ToolCall(result.call_id, "", {}), status=result.status))
+
+    def _boundary(self, name: str) -> str:
+        if not self.config.sandbox_policy.enabled:
+            return "host"
+        if name in ("bash", "diagnostics", "process_start", "process_status", "process_logs", "process_stop",
+                    "git_status", "git_diff", "git_log", "apply_patch"):
+            return "docker"
+        if name in ("read_file", "read_multi", "write_file", "edit_file", "delete_path", "glob", "grep"):
+            return "host-policy"
+        if name.startswith("mcp__") or name in ("browser_task", "fetch", "web_search"):
+            return "outside-sandbox"
+        return "host"
 
     def _save_benchmark_state(self) -> None:
         self.session.record_benchmark_state({
@@ -547,6 +630,9 @@ class AgentRuntime:
         tool = self.registry.get(call["name"])
         if tool is None:
             return f"Error: unknown tool '{call['name']}'"
+        if (self.config.sandbox_policy.enabled and self.config.sandbox_profile == "read-only"
+                and call["name"] in ("write_file", "edit_file", "delete_path", "apply_patch")):
+            return "refused: sandbox workspace is read-only"
         if isinstance(tool, MCPTool) and tool.name not in self.session.active_mcp_tools:
             return "Error: MCP tool is not active; call mcp_tool_search first"
         args = call["arguments"]
@@ -558,9 +644,16 @@ class AgentRuntime:
                 return f"Error: missing required argument '{key}'"
         types = {"string": str, "integer": int, "number": (int, float), "boolean": bool, "array": list, "object": dict}
         for key, value in args.items():
-            expected = schema.get("properties", {}).get(key, {}).get("type")
+            specification = schema.get("properties", {}).get(key, {})
+            expected = specification.get("type")
             if expected in types and (not isinstance(value, types[expected]) or expected == "integer" and isinstance(value, bool)):
                 return f"Error: argument '{key}' must be {expected}"
+            item_type = specification.get("items", {}).get("type") if expected == "array" else None
+            if item_type in types and isinstance(value, list) and any(
+                not isinstance(item, types[item_type]) or item_type == "integer" and isinstance(item, bool)
+                for item in value
+            ):
+                return f"Error: items of '{key}' must be {item_type}"
         return ""
 
 

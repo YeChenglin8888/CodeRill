@@ -4,7 +4,7 @@ CodeRill 是一个开源的 Python 编程 Agent，可以直接在终端中使用
 
 它重点处理长任务：用追加式会话日志记录执行过程，修改文件前请求审查，管理上下文长度，并在中断后恢复。CLI 和可选的 Textual TUI 共用一个异步运行时。
 
-[English](README.md) · [架构与故障语义](docs/architecture.md) · [实施状态](docs/implementation-status.md)
+[English](README.md) · [架构与故障语义](docs/architecture.md) · [Harness² 架构升级](docs/harness2.md) · [实施状态](docs/implementation-status.md)
 
 ## pipx 一条命令安装
 
@@ -17,6 +17,20 @@ pipx install coderill
 首次运行会把安装包内的配置模板复制到 `~/.coderill/.env`；取消 `OPENAI_API_KEY` 行前面的注释并填入密钥，或设置同名环境变量。缺少密钥时，CodeRill 会提示文件路径和变量名。然后进入想让 Agent 处理的项目目录，运行 `coderill "解释测试失败的原因"`。默认工作区是当前目录；`coderill --help` 可以查看其他参数。上述命令安装基础 CLI；TUI、MCP 的可选依赖见下文。
 
 ## 安装与使用
+
+### 可选 Docker 沙箱（源码安装）
+
+默认 `--sandbox off` 保持原有行为。要隔离 Shell、诊断、Git 和后台进程，先在源码目录构建两个本地镜像，并确保 Docker 引擎正在运行：
+
+```bash
+docker build -f sandbox/Dockerfile --target sandbox -t coderill-sandbox:local .
+docker build -f sandbox/Dockerfile --target gateway -t coderill-sandbox-gateway:local .
+coderill --cwd /path/to/project --sandbox docker "运行测试"
+```
+
+启用后默认可写当前工作区，外网仅允许 npm 和 PyPI 的三个 HTTPS 域名；其他 `域名:443` 由命令申请一次或本会话授权。`--sandbox-network none` 关闭外网，`--sandbox-profile read-only` 将工作区只读挂载。`--sandbox-port 5173:5173` 可让后台服务通过宿主机 `127.0.0.1:5173` 预览，后台工具需同时声明 `ports: [5173]`。敏感路径可在用户级 `~/.coderill/config.toml` 中配置，例如 `deny_read_paths = [".env"]`；项目配置和项目 `.env` 不能修改沙箱策略。
+
+沙箱启动或网关失败时命令会停止，不会在宿主机重试。文件工具仍由主程序执行，通过同一敏感路径策略检查；Hooks、MCP、浏览器和现有网页工具位于沙箱外。Docker Desktop 的 Windows 行为仍需完成实机验收，尤其是中文路径、文件遮蔽和本机预览。
 
 需要 Python 3.10 或更新版本。开发环境中运行：
 
@@ -84,7 +98,7 @@ py scripts/check_docker.py --recreate
 
 内置工具还支持批量读取、Git 状态／差异／历史、诊断命令、多文件补丁、删除、公开网页读取与搜索。补丁和删除在 aggressive 模式下仍须审查；网络工具拒绝本机与内网地址，也不跟随跳转。
 
-可选 MCP 通过官方 SDK 连接 stdio 和 Streamable HTTP 服务，配置文件为 `~/.coderill/mcp.json`。原有 Jev 浏览器能力仍可选用；其 DOM 读取代码的来源与许可记录见 [browser_NOTICE.txt](coderill/browser_NOTICE.txt)。
+可选 MCP 通过官方 SDK 连接 stdio 和 Streamable HTTP 服务，配置文件为 `~/.coderill/mcp.json`。Jev 现可作为普通编码任务的可选决策工具：安装 `.[jev]`，设置 `TYPESAFE_API_KEY` 和 `CODERILL_JEV_DECISIONS=1` 后，可用 `jev_decide` 比较固定候选；[Harness²](docs/harness2.md) 也可通过 `--decision-model jev` 选择最终产物。原有 Jev 浏览器能力仍可选用；其 DOM 读取代码的来源与许可记录见 [browser_NOTICE.txt](coderill/browser_NOTICE.txt)。
 
 ## 离线验证
 

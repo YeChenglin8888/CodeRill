@@ -6,13 +6,20 @@ import subprocess
 from pathlib import Path
 from typing import ClassVar
 
+from ..sandbox import DockerJob, SandboxPolicy
 from .base import Tool, ToolError, resolve_path
 
 
-def _git(root: Path, *args: str) -> str:
+def _git(root: Path, *args: str, policy: SandboxPolicy | None = None) -> str:
     try:
-        result = subprocess.run(["git", "-c", "core.pager=cat", *args], cwd=root, capture_output=True,
-                                text=True, errors="replace", timeout=20, check=False)
+        argv = ["git", "-c", "core.pager=cat", *(["-c", "core.hooksPath=/dev/null"] if policy and policy.enabled else []), *args]
+        if policy and policy.enabled:
+            raw = DockerJob(policy).run(argv, timeout=20)
+            result = subprocess.CompletedProcess(argv, raw.returncode, raw.stdout.decode(errors="replace"),
+                                                 raw.stderr.decode(errors="replace"))
+        else:
+            result = subprocess.run(argv, cwd=root, capture_output=True,
+                                    text=True, errors="replace", timeout=20, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ToolError(f"git failed: {exc}") from exc
     if result.returncode:
@@ -31,11 +38,12 @@ class GitStatusTool(Tool):
     read_only = True
     parameters: ClassVar[dict] = {"type": "object", "properties": {}}
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, policy: SandboxPolicy | None = None) -> None:
         self.root = root
+        self.policy = policy
 
     def execute(self) -> str:
-        return _git(self.root, "status", "--short") or "(clean worktree)"
+        return _git(self.root, "status", "--short", policy=self.policy) or "(clean worktree)"
 
 
 class GitDiffTool(Tool):
@@ -46,12 +54,15 @@ class GitDiffTool(Tool):
         "path": {"type": "string"}, "staged": {"type": "boolean"},
     }}
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, policy: SandboxPolicy | None = None) -> None:
         self.root = root
+        self.policy = policy
 
     def execute(self, path: str = ".", staged: bool = False) -> str:
+        excludes = [f":(exclude){denied.relative_to(self.root).as_posix()}"
+                    for denied in self.policy._denied] if self.policy and self.policy.enabled else []
         return _git(self.root, "diff", "--no-ext-diff", *(["--cached"] if staged else []),
-                    "--", _relative(self.root, path)) or "(no diff)"
+                    "--", _relative(self.root, path), *excludes, policy=self.policy) or "(no diff)"
 
 
 class GitLogTool(Tool):
@@ -62,10 +73,12 @@ class GitLogTool(Tool):
         "path": {"type": "string"}, "max_entries": {"type": "integer"},
     }}
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, policy: SandboxPolicy | None = None) -> None:
         self.root = root
+        self.policy = policy
 
     def execute(self, path: str = ".", max_entries: int = 10) -> str:
         if not 1 <= max_entries <= 100:
             raise ToolError("max_entries must be between 1 and 100")
-        return _git(self.root, "log", "--oneline", f"-{max_entries}", "--", _relative(self.root, path)) or "(no commits)"
+        return _git(self.root, "log", "--oneline", f"-{max_entries}", "--", _relative(self.root, path),
+                    policy=self.policy) or "(no commits)"

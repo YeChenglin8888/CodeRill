@@ -1,7 +1,7 @@
 import './style.css'
 
 type Message = { role: 'user' | 'assistant' | 'tool'; content: string }
-type Review = { id: string; call: { name: string; arguments: unknown }; diff: string }
+type Review = { id: string; kind?: string; call: { name: string; arguments: unknown }; diff: string }
 type Profile = { name: string; model: string; provider: string }
 type Background = { id: string; status: string; description: string; result: string }
 type Child = { id: string; task: string; allow_write: boolean; applied: boolean }
@@ -11,6 +11,7 @@ type Session = {
   mode: string; reasoning: boolean; profiles: Profile[]; attachments: { name: string; size: number }[]
   usage: { requests: number; input_tokens: number; output_tokens: number; cost: number | null }
   background: Background[]; children: Child[]
+  sandbox: { backend: string; profile: string; network: string; approvedDomains: string[]; outside: string[] }
 }
 type Summary = { id: string; model: string; updated: string; title: string }
 type Result = { message: string; sessionId?: string; exit?: boolean; applyPreview?: { childId: string; diff: string } | null }
@@ -71,9 +72,10 @@ app.innerHTML = `
         <aside id="inspector" class="inspector" aria-label="任务详情">
           <div class="inspector-heading"><strong>任务详情</strong><button id="inspector-close" class="icon-button mobile-only" type="button" aria-label="关闭详情">×</button></div>
           <section><h2>工作区</h2><div id="workspace" class="workspace-path"></div></section>
+          <section><h2>沙箱</h2><div id="sandbox-status" class="workspace-path"></div></section>
           <section><h2>模型</h2><select id="model" aria-label="选择模型"></select></section>
           <section><h2>运行模式</h2><label class="setting"><span>计划模式<small>先调查与规划，不修改文件</small></span><input id="plan-mode" type="checkbox"></label>
-            <label class="setting"><span>自动批准<small>跳过工具确认</small></span><input id="auto-approve" type="checkbox"></label>
+            <label class="setting"><span>自动批准<small>跳过普通工具确认；额外域名仍需授权</small></span><input id="auto-approve" type="checkbox"></label>
             <label class="setting"><span>显示推理过程</span><input id="reasoning" type="checkbox"></label>
             <label class="select-setting">权限范围<select id="permission-mode"><option value="standard">标准</option><option value="aggressive">宽松</option><option value="bypass">全部允许</option></select></label>
           </section>
@@ -181,6 +183,9 @@ function render() {
   for (const item of current?.messages || []) appendMessage(item)
   $('#empty').hidden = Boolean(current?.messages.length)
   $('#workspace').textContent = current?.workspace || ''
+  $('#sandbox-status').textContent = current?.sandbox.backend === 'docker'
+    ? `Docker · ${current.sandbox.profile} · 网络 ${current.sandbox.network}\n已授权域名：${current.sandbox.approvedDomains.join('、') || '无'}\n沙箱外：${current.sandbox.outside.join('、')}`
+    : '关闭'
   $('#project-name').textContent = current?.workspace.split(/[\\/]/).pop() || '工作区'
   $('#thread-title').textContent = summaries.find(item => item.id === current?.id)?.title || '新建任务'
   $('#live').querySelector('span:last-child')!.textContent = busy ? '运行中' : current?.status === 'waiting' ? '待批准' : '就绪'
@@ -191,6 +196,7 @@ function render() {
   if (current?.review) {
     $('#review-call').textContent = `${current.review.call.name} ${JSON.stringify(current.review.call.arguments)}`
     $('#review-diff').textContent = current.review.diff || '此操作没有文件差异。'
+    $('#review [data-decision="always"]').textContent = current.review.kind === 'sandbox_network' ? '本会话允许' : '始终批准此目标'
   }
   const model = $<HTMLSelectElement>('#model')
   model.replaceChildren()
@@ -344,7 +350,7 @@ async function stream(action: 'turn' | 'review' | 'recover', body: object) {
           if (!answer) answer = appendMessage({ role: 'assistant', content: '' })
           answer.textContent += event.text || ''
           conversation.scrollTop = conversation.scrollHeight
-        } else if (event.kind === 'tool_started') activity.push(`正在运行 ${event.tool || '工具'}`)
+        } else if (event.kind === 'tool_started') activity.push(`正在运行 ${event.tool || '工具'} · ${event.status || 'host'}`)
         else if (event.kind === 'tool_result') activity.push(`工具完成 · ${(event.text || '').slice(0, 100)}`)
         else if (event.kind === 'reasoning_delta') activity.push(`推理 · ${(event.text || '').slice(0, 100)}`)
         else if (event.kind === 'done') {

@@ -40,6 +40,24 @@ class DelegateTool(Tool):
         raise ToolError("delegation requires the async runtime")
 
 
+class HarnessDelegateTool(DelegateTool):
+    """Expose only named, read-only harness roles inside a refinement probe."""
+
+    name = "harness_agent"
+    description = "Delegate a bounded investigation to a named harness subagent role."
+
+    def __init__(self, service, roles: dict[str, str]) -> None:
+        super().__init__(service)
+        self.roles = roles
+        self.parameters = {"type": "object", "properties": {
+            "role": {"type": "string", "enum": sorted(roles)},
+            "task": {"type": "string"},
+        }, "required": ["role", "task"]}
+
+    async def aexecute(self, role: str, task: str) -> str:
+        return await self.service.delegate(task, harness_role=role)
+
+
 class BackgroundStatusTool(Tool):
     name = "background_status"
     description = "Check a background child agent by task id."

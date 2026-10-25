@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 from rich.console import Console
 
@@ -18,6 +19,7 @@ from ..permissions import ReviewManager
 from ..providers import create_provider
 from ..providers.types import ChatStreamEvent
 from ..runtime.services import ServiceProcessManager
+from ..sandbox import check_active_path, policy_scope
 from ..session import Session
 from ..skills import SkillCatalog, default_roots
 from ..taskplan import TaskPlan
@@ -74,7 +76,7 @@ class State:
             registry.register(tool)
         processes = self.service_processes.get(self.session.id)
         if processes is None:
-            processes = ServiceProcessManager(self.session, self.config.workspace)
+            processes = ServiceProcessManager(self.session, self.config.workspace, self.config.sandbox_policy)
             self.service_processes[self.session.id] = processes
         else:
             processes.session = self.session
@@ -98,6 +100,9 @@ class State:
 
     def select_model(self, profile: str) -> None:
         config = Config.from_env(self.config.workspace, overrides={"profile": profile, "benchmark": self.config.benchmark})
+        config = replace(config, **{name: getattr(self.config, name) for name in (
+            "sandbox", "sandbox_profile", "sandbox_network", "sandbox_image", "sandbox_ports",
+            "deny_read_paths", "sandbox_cpus", "sandbox_memory", "sandbox_pids")})
         provider = create_provider(config)
         previous_config, previous_llm = self.config, self.llm
         self.config, self.llm = config, LLM(config)
@@ -111,13 +116,22 @@ class State:
     def run_async(self, coroutine):
         return self.loop.run_until_complete(coroutine)
 
+    def attach_file(self, path):
+        with policy_scope(self.config.sandbox_policy):
+            check_active_path(Path(path).expanduser().resolve())
+            return self.session.attach_file(path)
+
     def close(self) -> None:
+        for process in self.service_processes.values():
+            process.close()
         for service in self.subagent_services.values():
             self.loop.run_until_complete(service.close())
         self.loop.run_until_complete(self.mcp.close())
         self.loop.close()
 
     async def close_async(self) -> None:
+        for process in self.service_processes.values():
+            process.close()
         for service in self.subagent_services.values():
             await service.close()
         await self.mcp.close()
@@ -132,7 +146,7 @@ class State:
         elif event.kind == "reasoning_delta":
             self._on_reasoning(event.text)
         elif event.kind == "tool_started" and event.tool_call:
-            self._on_tool(event.tool_call.name, event.tool_call.arguments)
+            self._on_tool(event.tool_call.name, event.tool_call.arguments, event.status)
         elif event.kind == "tool_result":
             self._on_tool_result("", event.text)
 
@@ -140,9 +154,9 @@ class State:
         if self.show_reasoning:
             self.console.print(f"[dim italic]{text}[/dim italic]", end="")
 
-    def _on_tool(self, name: str, arguments: dict) -> None:
+    def _on_tool(self, name: str, arguments: dict, boundary: str = "") -> None:
         preview = ", ".join(f"{k}={_short(v)}" for k, v in arguments.items())
-        self.console.print(f"\n[magenta]→ {name}[/magenta] [dim]({preview})[/dim]")
+        self.console.print(f"\n[magenta]→ {name}[/magenta] [dim]({preview}) [{boundary}][/dim]")
 
     def _on_tool_result(self, name: str, text: str) -> None:
         first = _short(text.strip().splitlines()[0] if text.strip() else "(no output)", 100)

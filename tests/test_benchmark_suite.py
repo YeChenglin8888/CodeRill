@@ -1,6 +1,7 @@
 """Reproducible report accounting without external model calls."""
 
 import asyncio
+import json
 import sys
 from types import SimpleNamespace
 
@@ -55,3 +56,31 @@ def test_case_runs_in_copy_and_counts_verified_result(tmp_path, monkeypatch):
     result = run_case(case, tmp_path)
     assert result["outcome"] == "passed"
     assert (source / "answer.txt").read_text(encoding="utf-8") == "before"
+    assert result["approval_policy"] == "bypass"
+    assert result["settings"]["max_turns"] == 30
+    assert result["case_metadata"]["prompt"] == "change file"
+
+
+@pytest.mark.parametrize("outcome", ["passed", "verification_failed", "unverified", "agent_failed", "infrastructure_error"])
+def test_cli_writes_report_and_fails_gate_unless_every_case_passes(tmp_path, monkeypatch, outcome):
+    manifest = tmp_path / "suite.json"
+    manifest.write_text(json.dumps([{"id": "sample", "workspace": "source", "prompt": "fix"}]), encoding="utf-8")
+    output = tmp_path / "results" / "run.json"
+    monkeypatch.setattr(sys, "argv", ["benchmark_suite", str(manifest), "--output", str(output)])
+
+    def run(*_args, **_kwargs):
+        if outcome == "infrastructure_error":
+            raise RuntimeError("setup unavailable")
+        return {"id": "sample", "outcome": outcome}
+
+    monkeypatch.setattr(benchmark_suite, "run_case", run)
+    if outcome == "passed":
+        benchmark_suite.main()
+    else:
+        with pytest.raises(SystemExit) as exc:
+            benchmark_suite.main()
+        assert exc.value.code == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert len(report["manifest_sha256"]) == 64
+    assert report["summary"]["all_passed"] is (outcome == "passed")
+    assert report["summary"]["outcomes"] == {outcome: 1}

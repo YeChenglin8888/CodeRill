@@ -151,7 +151,9 @@ def test_repl_uses_framed_multiline_editor_with_explicit_send(monkeypatch, tmp_p
 
 def test_welcome_panel_shows_project_specific_help_at_wide_and_narrow_widths():
     state = SimpleNamespace(session=SimpleNamespace(messages=[], turns=0, id="session-1"),
-                            config=SimpleNamespace(model="demo-model", workspace=Path("project")))
+                            config=SimpleNamespace(model="demo-model", workspace=Path("project"),
+                                                   sandbox="off", sandbox_profile="workspace-write",
+                                                   sandbox_network="restricted"))
     for width in (60, 100):
         output = io.StringIO()
         cli._print_welcome(state, Console(file=output, width=width, force_terminal=False))
