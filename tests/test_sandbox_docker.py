@@ -44,6 +44,19 @@ def test_workspace_write_and_read_only_modes(tmp_path):
     assert (workspace / "result.txt").read_text() == "changed"
 
 
+def test_verifier_mount_is_read_only(tmp_path):
+    workspace, verifier = tmp_path / "workspace", tmp_path / "verifier"
+    workspace.mkdir()
+    verifier.mkdir()
+    (verifier / "check.txt").write_text("expected", encoding="utf-8")
+    policy = SandboxPolicy(workspace, backend="docker", network="none")
+    result = DockerJob(policy, verifier_dir=verifier).run(["python", "-c",
+        ("from pathlib import Path; assert Path('/verifier/check.txt').read_text() == 'expected'; "
+         "Path('/verifier/check.txt').write_text('changed')")], timeout=20)
+    assert result.returncode != 0
+    assert (verifier / "check.txt").read_text(encoding="utf-8") == "expected"
+
+
 def test_gateway_allows_default_domain_and_denies_unlisted_target(tmp_path):
     policy = SandboxPolicy(tmp_path, backend="docker")
     allowed = DockerJob(policy).run(["python", "-c",

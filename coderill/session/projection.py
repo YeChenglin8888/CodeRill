@@ -27,6 +27,8 @@ def project_events(events: list[dict]) -> dict:
         "background_tasks": {},
         "subagents": {},
         "usage": {"requests": 0, "input_tokens": 0, "output_tokens": 0},
+        "usage_by_model": {},
+        "routing_events": [],
         "active_mcp_tools": [],
         "active_task_hash": None,
         "task_candidate": None,
@@ -109,6 +111,15 @@ def project_events(events: list[dict]) -> dict:
             state["usage"]["requests"] += 1
             state["usage"]["input_tokens"] += event.get("input_tokens", 0)
             state["usage"]["output_tokens"] += event.get("output_tokens", 0)
+            key = (f'{event["provider"]}/{event["model"]}' if event.get("provider") and event.get("model")
+                   else "unknown")
+            row = state["usage_by_model"].setdefault(
+                key, {"requests": 0, "input_tokens": 0, "output_tokens": 0})
+            row["requests"] += 1
+            row["input_tokens"] += event.get("input_tokens", 0)
+            row["output_tokens"] += event.get("output_tokens", 0)
+        elif kind == "routing_decision":
+            state["routing_events"].append(event)
 
     for task in state["background_tasks"].values():
         if task["status"] == "running":

@@ -1,0 +1,1556 @@
+{
+  "read_only": [
+    {
+      "id": "read-00-00",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-00",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-00\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-01",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-01",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-01\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-02",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-02",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-02\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-03",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-03",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-03\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-04",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-04",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-04\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-05",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-05",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-05\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-06",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-06",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-06\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-07",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-07",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-07\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-08",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-08",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-08\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-00-09",
+      "prompt": "Read record.json. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-00-09",
+      "files": {
+        "record.json": "{\"record\":{\"answer\":\"TOKEN-00-09\",\"decoy\":\"WRONG\"}}"
+      }
+    },
+    {
+      "id": "read-01-00",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-00",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-00\n"
+      }
+    },
+    {
+      "id": "read-01-01",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-01",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-01\n"
+      }
+    },
+    {
+      "id": "read-01-02",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-02",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-02\n"
+      }
+    },
+    {
+      "id": "read-01-03",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-03",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-03\n"
+      }
+    },
+    {
+      "id": "read-01-04",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-04",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-04\n"
+      }
+    },
+    {
+      "id": "read-01-05",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-05",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-05\n"
+      }
+    },
+    {
+      "id": "read-01-06",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-06",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-06\n"
+      }
+    },
+    {
+      "id": "read-01-07",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-07",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-07\n"
+      }
+    },
+    {
+      "id": "read-01-08",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-08",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-08\n"
+      }
+    },
+    {
+      "id": "read-01-09",
+      "prompt": "Read record.csv. Return only the answer field for id 2; include no other text.",
+      "expected": "TOKEN-01-09",
+      "files": {
+        "record.csv": "id,answer\n1,WRONG\n2,TOKEN-01-09\n"
+      }
+    },
+    {
+      "id": "read-02-00",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-00",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-00 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-01",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-01",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-01 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-02",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-02",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-02 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-03",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-03",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-03 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-04",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-04",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-04 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-05",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-05",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-05 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-06",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-06",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-06 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-07",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-07",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-07 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-08",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-08",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-08 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-02-09",
+      "prompt": "Read record.md. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-02-09",
+      "files": {
+        "record.md": "# Record\n| field | value |\n| answer | TOKEN-02-09 |\n| decoy | WRONG |\n"
+      }
+    },
+    {
+      "id": "read-03-00",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-00",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-00\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-01",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-01",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-01\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-02",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-02",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-02\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-03",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-03",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-03\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-04",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-04",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-04\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-05",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-05",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-05\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-06",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-06",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-06\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-07",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-07",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-07\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-08",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-08",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-08\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-03-09",
+      "prompt": "Read record.ini. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-03-09",
+      "files": {
+        "record.ini": "[record]\nanswer = TOKEN-03-09\ndecoy = WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-00",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-00",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-00\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-01",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-01",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-01\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-02",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-02",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-02\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-03",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-03",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-03\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-04",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-04",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-04\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-05",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-05",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-05\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-06",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-06",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-06\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-07",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-07",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-07\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-08",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-08",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-08\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-04-09",
+      "prompt": "Read record.yaml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-04-09",
+      "files": {
+        "record.yaml": "record:\n  answer: TOKEN-04-09\n  decoy: WRONG\n"
+      }
+    },
+    {
+      "id": "read-05-00",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-00",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-00</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-01",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-01",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-01</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-02",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-02",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-02</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-03",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-03",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-03</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-04",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-04",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-04</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-05",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-05",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-05</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-06",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-06",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-06</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-07",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-07",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-07</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-08",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-08",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-08</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-05-09",
+      "prompt": "Read record.xml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-05-09",
+      "files": {
+        "record.xml": "<record><answer>TOKEN-05-09</answer><decoy>WRONG</decoy></record>"
+      }
+    },
+    {
+      "id": "read-06-00",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-00",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-00</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-01",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-01",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-01</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-02",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-02",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-02</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-03",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-03",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-03</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-04",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-04",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-04</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-05",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-05",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-05</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-06",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-06",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-06</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-07",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-07",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-07</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-08",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-08",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-08</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-06-09",
+      "prompt": "Read record.html. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-06-09",
+      "files": {
+        "record.html": "<html><body><span data-field=\"answer\">TOKEN-06-09</span><span data-field=\"decoy\">WRONG</span></body></html>"
+      }
+    },
+    {
+      "id": "read-07-00",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-00",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-00\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-01",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-01",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-01\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-02",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-02",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-02\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-03",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-03",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-03\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-04",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-04",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-04\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-05",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-05",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-05\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-06",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-06",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-06\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-07",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-07",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-07\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-08",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-08",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-08\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-07-09",
+      "prompt": "Read record.py. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-07-09",
+      "files": {
+        "record.py": "ANSWER = \"TOKEN-07-09\"\nDECOY = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-08-00",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-00",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-00\n"
+      }
+    },
+    {
+      "id": "read-08-01",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-01",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-01\n"
+      }
+    },
+    {
+      "id": "read-08-02",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-02",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-02\n"
+      }
+    },
+    {
+      "id": "read-08-03",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-03",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-03\n"
+      }
+    },
+    {
+      "id": "read-08-04",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-04",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-04\n"
+      }
+    },
+    {
+      "id": "read-08-05",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-05",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-05\n"
+      }
+    },
+    {
+      "id": "read-08-06",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-06",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-06\n"
+      }
+    },
+    {
+      "id": "read-08-07",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-07",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-07\n"
+      }
+    },
+    {
+      "id": "read-08-08",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-08",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-08\n"
+      }
+    },
+    {
+      "id": "read-08-09",
+      "prompt": "Read record.log. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-08-09",
+      "files": {
+        "record.log": "INFO decoy=WRONG\nINFO answer=TOKEN-08-09\n"
+      }
+    },
+    {
+      "id": "read-09-00",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-00",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-00\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-01",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-01",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-01\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-02",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-02",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-02\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-03",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-03",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-03\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-04",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-04",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-04\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-05",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-05",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-05\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-06",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-06",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-06\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-07",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-07",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-07\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-08",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-08",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-08\"\ndecoy = \"WRONG\"\n"
+      }
+    },
+    {
+      "id": "read-09-09",
+      "prompt": "Read record.toml. Return only the value of its answer field; include no other text.",
+      "expected": "TOKEN-09-09",
+      "files": {
+        "record.toml": "[record]\nanswer = \"TOKEN-09-09\"\ndecoy = \"WRONG\"\n"
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "boundary-00",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the payment timeout bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the payment timeout code."
+        }
+      ],
+      "latest": "Continue investigating that payment timeout bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-01",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CSV export bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CSV export code."
+        }
+      ],
+      "latest": "Continue investigating that CSV export bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-02",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the search index bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the search index code."
+        }
+      ],
+      "latest": "Continue investigating that search index bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-03",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the login form bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the login form code."
+        }
+      ],
+      "latest": "Continue investigating that login form bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-04",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the file upload bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the file upload code."
+        }
+      ],
+      "latest": "Continue investigating that file upload bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-05",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the calendar sync bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the calendar sync code."
+        }
+      ],
+      "latest": "Continue investigating that calendar sync bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-06",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the report builder bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the report builder code."
+        }
+      ],
+      "latest": "Continue investigating that report builder bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-07",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the cache expiry bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the cache expiry code."
+        }
+      ],
+      "latest": "Continue investigating that cache expiry bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-08",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CLI help bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CLI help code."
+        }
+      ],
+      "latest": "Continue investigating that CLI help bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-09",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the test fixture bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the test fixture code."
+        }
+      ],
+      "latest": "Continue investigating that test fixture bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-10",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the payment timeout bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the payment timeout code."
+        }
+      ],
+      "latest": "Continue investigating that payment timeout bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-11",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CSV export bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CSV export code."
+        }
+      ],
+      "latest": "Continue investigating that CSV export bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-12",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the search index bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the search index code."
+        }
+      ],
+      "latest": "Continue investigating that search index bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-13",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the login form bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the login form code."
+        }
+      ],
+      "latest": "Continue investigating that login form bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-14",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the file upload bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the file upload code."
+        }
+      ],
+      "latest": "Continue investigating that file upload bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-15",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the calendar sync bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the calendar sync code."
+        }
+      ],
+      "latest": "Continue investigating that calendar sync bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-16",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the report builder bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the report builder code."
+        }
+      ],
+      "latest": "Continue investigating that report builder bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-17",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the cache expiry bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the cache expiry code."
+        }
+      ],
+      "latest": "Continue investigating that cache expiry bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-18",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CLI help bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CLI help code."
+        }
+      ],
+      "latest": "Continue investigating that CLI help bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-19",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the test fixture bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the test fixture code."
+        }
+      ],
+      "latest": "Continue investigating that test fixture bug and check the tests.",
+      "decision": "same"
+    },
+    {
+      "id": "boundary-20",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the payment timeout bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the payment timeout code."
+        }
+      ],
+      "latest": "New task: explain how the login form feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-21",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CSV export bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CSV export code."
+        }
+      ],
+      "latest": "New task: explain how the file upload feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-22",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the search index bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the search index code."
+        }
+      ],
+      "latest": "New task: explain how the calendar sync feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-23",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the login form bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the login form code."
+        }
+      ],
+      "latest": "New task: explain how the report builder feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-24",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the file upload bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the file upload code."
+        }
+      ],
+      "latest": "New task: explain how the cache expiry feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-25",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the calendar sync bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the calendar sync code."
+        }
+      ],
+      "latest": "New task: explain how the CLI help feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-26",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the report builder bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the report builder code."
+        }
+      ],
+      "latest": "New task: explain how the test fixture feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-27",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the cache expiry bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the cache expiry code."
+        }
+      ],
+      "latest": "New task: explain how the payment timeout feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-28",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CLI help bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CLI help code."
+        }
+      ],
+      "latest": "New task: explain how the CSV export feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-29",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the test fixture bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the test fixture code."
+        }
+      ],
+      "latest": "New task: explain how the search index feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-30",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the payment timeout bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the payment timeout code."
+        }
+      ],
+      "latest": "New task: explain how the login form feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-31",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CSV export bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CSV export code."
+        }
+      ],
+      "latest": "New task: explain how the file upload feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-32",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the search index bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the search index code."
+        }
+      ],
+      "latest": "New task: explain how the calendar sync feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-33",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the login form bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the login form code."
+        }
+      ],
+      "latest": "New task: explain how the report builder feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-34",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the file upload bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the file upload code."
+        }
+      ],
+      "latest": "New task: explain how the cache expiry feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-35",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the calendar sync bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the calendar sync code."
+        }
+      ],
+      "latest": "New task: explain how the CLI help feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-36",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the report builder bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the report builder code."
+        }
+      ],
+      "latest": "New task: explain how the test fixture feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-37",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the cache expiry bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the cache expiry code."
+        }
+      ],
+      "latest": "New task: explain how the payment timeout feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-38",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CLI help bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CLI help code."
+        }
+      ],
+      "latest": "New task: explain how the CSV export feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-39",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the test fixture bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the test fixture code."
+        }
+      ],
+      "latest": "New task: explain how the search index feature works.",
+      "decision": "new"
+    },
+    {
+      "id": "boundary-40",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the payment timeout bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the payment timeout code."
+        }
+      ],
+      "latest": "Can you also check this?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-41",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CSV export bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CSV export code."
+        }
+      ],
+      "latest": "What about the other part?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-42",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the search index bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the search index code."
+        }
+      ],
+      "latest": "And that?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-43",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the login form bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the login form code."
+        }
+      ],
+      "latest": "Maybe look at it too?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-44",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the file upload bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the file upload code."
+        }
+      ],
+      "latest": "Could you handle this next?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-45",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the calendar sync bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the calendar sync code."
+        }
+      ],
+      "latest": "Can you also check this?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-46",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the report builder bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the report builder code."
+        }
+      ],
+      "latest": "What about the other part?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-47",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the cache expiry bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the cache expiry code."
+        }
+      ],
+      "latest": "And that?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-48",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the CLI help bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the CLI help code."
+        }
+      ],
+      "latest": "Maybe look at it too?",
+      "decision": "uncertain"
+    },
+    {
+      "id": "boundary-49",
+      "previous": [
+        {
+          "role": "user",
+          "content": "Investigate the test fixture bug."
+        },
+        {
+          "role": "assistant",
+          "content": "I will inspect the test fixture code."
+        }
+      ],
+      "latest": "Could you handle this next?",
+      "decision": "uncertain"
+    }
+  ]
+}

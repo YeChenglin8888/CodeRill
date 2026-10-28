@@ -28,7 +28,7 @@ steps and always confirm your changes actually work before you report success.
 Environment
 - Workspace root: {registry.workspace}
 - Every file path you pass to a tool is resolved against the workspace root.
-- You cannot reach anything outside the workspace.
+- Workspace file tools cannot reach paths outside the workspace. Optional computer_use operates on the host desktop.
 
 Tools
 {tools}

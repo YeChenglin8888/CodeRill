@@ -1,10 +1,20 @@
 # CodeRill
 
-CodeRill 是一个开源的 Python 编程 Agent，可以直接在终端中使用。给它一个代码任务，它会查看和搜索项目、提出修改、运行命令，再根据结果决定下一步；源码也适合用来学习编程 Agent 如何工作。
+CodeRill 是一个开源的 Python 编程 Agent，可通过终端或本地网页处理代码任务。它能查看和搜索项目、在审查后修改文件、运行命令并根据结果继续工作；源码也适合学习编程 Agent 的实现。
 
-它重点处理长任务：用追加式会话日志记录执行过程，修改文件前请求审查，管理上下文长度，并在中断后恢复。CLI 和可选的 Textual TUI 共用一个异步运行时。
+它重点处理长任务：使用追加式会话日志、修改前审查、上下文管理和项目记忆，并在中断后恢复。CLI、可选 Textual 界面和本地网页共用异步运行时。
 
-[English](README.md) · [架构与故障语义](docs/architecture.md) · [Harness² 架构升级](docs/harness2.md) · [实施状态](docs/implementation-status.md)
+[English](README.md) · [架构与故障语义](docs/architecture.md) · [项目记忆](docs/memory.md) · [Harness² 架构升级](docs/harness2.md) · [评测](docs/evaluation.md) · [实施状态](docs/implementation-status.md)
+
+## 最新改动
+
+- **项目记忆：**保存有来源的决策和经验，在同一项目的不同会话中检索；通过 `/memory` 查看、纠正、删除或索引。可选本地语义检索，模型不可用时使用关键词检索。
+- **能力路由：**按名称和描述发现 MCP 工具与 Skill，支持本地排序、可选外部语义检索，以及通过资格评测的轻量模型处理部分只读工作。
+- **Harness² 进化：**对比任务执行、记录证据并保存可复用配置；交互式采纳前执行独立评测。
+- **工具与安全：**提供可选 Windows 桌面操作、Docker 命令沙箱、持久化审批和任务恢复。
+- **评测：**增加记忆与路由的合成检索用例，并支持用可执行验证器比较编码任务结果。
+
+以上是源码工作区的最新能力。下方 PyPI 安装命令获取已发布版本，可能尚不包含未发布的改动。详细说明和验证边界见 [更新记录](CHANGELOG.md) 与 [评测文档](docs/evaluation.md)。
 
 ## pipx 一条命令安装
 

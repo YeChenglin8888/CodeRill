@@ -99,6 +99,19 @@ class Usage:
         return self.input_tokens / 1e6 * price[0] + self.output_tokens / 1e6 * price[1]
 
 
+def session_cost(usage_by_model: dict[str, dict]) -> tuple[float, bool]:
+    """Return priced spend and whether every recorded call has a known price."""
+    total = 0.0
+    complete = True
+    for key, counts in usage_by_model.items():
+        price = Usage(**counts).cost(key.rsplit("/", 1)[-1]) if key != "unknown" else None
+        if price is None:
+            complete = False
+        else:
+            total += price
+    return total, complete
+
+
 class LLM:
     """A thin, retrying wrapper around the chat completions API."""
 

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "memory-tax-rate-update",
+    "workspace": "cases/memory-001-tax",
+    "prompt": "Implement the project tax rate in tax.py using the previously agreed project setting, then explain the change.",
+    "memory_history": [
+      {"key": "project tax rate", "content": "The project tax rate was agreed to be 10 percent."},
+      {"key": "project tax rate", "content": "The agreed project tax rate was corrected to 13 percent.", "update": true}
+    ],
+    "verify": [["{python}", "-c", "import tax; assert tax.tax_rate_percent() == 13"]]
+  }
+]

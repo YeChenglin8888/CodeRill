@@ -116,3 +116,22 @@ def test_extra_network_domain_requires_review_even_when_tool_approval_is_bypasse
     assert session.finished_calls["c"]["status"] == "success"
     assert not runner._network_once
     assert any(event.kind == "tool_started" and event.status == "docker" for event in events)
+
+
+def test_dont_ask_denies_extra_sandbox_network_grant(tmp_path):
+    class Provider:
+        def __init__(self):
+            self.responses = [ChatResponse("", (ToolCall("c", "bash", {
+                "command": "echo ok", "network_domains": ["example.com:443"],
+            }),)), ChatResponse("done")]
+
+        async def stream(self, _request):
+            yield ChatStreamEvent("completed", response=self.responses.pop(0))
+
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    config = Config(api_key="unused", model="fake", workspace=tmp_path, sandbox="docker")
+    runner = AgentRuntime(config, session, build_registry(tmp_path, config=config), Provider(),
+                          ReviewManager(tmp_path, mode=Mode.DONT_ASK, policy=config.sandbox_policy))
+    result = asyncio.run(runner.run_turn("run"))
+    assert result.status == "complete"
+    assert session.finished_calls["c"]["status"] == "denied"

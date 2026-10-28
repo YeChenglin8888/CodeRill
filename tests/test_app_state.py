@@ -3,8 +3,9 @@ from rich.console import Console
 from coderill.app.state import State
 from coderill.config import Config
 from coderill.hooks import Hooks
-from coderill.permissions import Mode, ReviewManager
+from coderill.permissions import GrantStore, Mode, ReviewManager
 from coderill.session import Session, SessionStore
+from coderill.tools import build_registry
 
 
 def test_rebuild_uses_freshly_loaded_session_projection(tmp_path, monkeypatch):
@@ -55,5 +56,25 @@ def test_model_switch_is_shared_and_keeps_old_state_on_failure(tmp_path, monkeyp
             pass
         assert state.agent is old_agent
         assert state.session.model == "new"
+    finally:
+        state.close()
+
+
+def test_file_approval_expires_when_switching_sessions(tmp_path, monkeypatch):
+    monkeypatch.setattr("coderill.app.state.create_provider", lambda config: object())
+    store = SessionStore(tmp_path / "sessions")
+    first = Session.new("fake", str(tmp_path), store)
+    review = ReviewManager(tmp_path, store=GrantStore(tmp_path / "grants.json"))
+    state = State(Config(api_key="unused", workspace=tmp_path), first, Console(), object(), review, Hooks([], []))
+    tool = build_registry(tmp_path).get("write_file")
+    call = {"name": "write_file", "arguments": {"path": "a.txt", "content": "x"}}
+    try:
+        state.rebuild()
+        review.remember(review.request(tool, call))
+        state.rebuild()
+        assert review.request(tool, call) is None
+        state.session = Session.new("fake", str(tmp_path), store)
+        state.rebuild()
+        assert review.request(tool, call) is not None
     finally:
         state.close()

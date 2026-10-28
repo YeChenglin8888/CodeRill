@@ -1,10 +1,22 @@
 # CodeRill
 
-CodeRill is an open-source Python coding agent you can run in your terminal. Give it a task in a repository: it can inspect code, search files, propose edits, run commands, and use the results to decide what to do next. It is also a readable project for learning how a coding agent works.
+CodeRill is an open-source Python coding agent for working in a repository through a terminal or local web interface. It can inspect code, search files, make reviewed changes, run commands and use the results to continue a task. Its readable runtime also makes it a useful starting point for studying coding agents.
 
-Long tasks are its focus: CodeRill records each step in an append-only session log, asks for review before changing files, manages context limits, and can resume after an interruption. The CLI and optional Textual interface share the same async runtime.
+Long tasks are its focus: CodeRill records an append-only session log, supports review before changes, manages context limits, retrieves project memories and resumes after interruptions. The CLI, optional Textual interface and local web interface share the async runtime.
 
 [中文说明](README.zh-CN.md) · [Architecture and failure semantics](docs/architecture.md) · [Evaluation](docs/evaluation.md) · [Harness² refinement](docs/harness2.md) · [Implementation status](docs/implementation-status.md)
+
+Project-scoped memory, local retrieval setup, and management commands are documented in [Project memory](docs/memory.md).
+
+## Latest changes
+
+- **Project memory:** extract source-backed decisions and lessons, search across sessions, and use `/memory` to inspect, correct, delete or index records. Local semantic retrieval is optional; lexical search remains available without the model.
+- **Capability routing:** search MCP tools and Skills with local ranking and optional configured embeddings; qualified light-model routing is available for selected read-only work.
+- **Harness² refinement:** compare task runs, preserve evidence and reusable harnesses, and use independent evaluation before interactive adoption.
+- **Tools and safety:** optional Windows desktop control, Docker command sandboxing, durable approvals and task recovery.
+- **Evaluation:** synthetic routing and memory fixtures complement executable coding tasks; model, cost and verifier results should be reported separately from offline tests.
+
+These changes are in the source checkout. The PyPI command below installs the latest published package, which may not include unreleased features. See [CHANGELOG](CHANGELOG.md) and [evaluation](docs/evaluation.md) for details and limitations.
 
 ## Quick start with pipx
 
@@ -73,7 +85,7 @@ api_key_env = "ANTHROPIC_API_KEY"
 vision = true
 ```
 
-Select a profile in the REPL with `/model claude` or in the TUI model selector. Existing commands include `/new`, `/list`, `/resume`, `/fork`, `/share`, `/where`, `/cost`, `/plan`, `/approve`, `/mode`, `/undo`, `/reasoning`, `/mcp`, and `/exit`. New commands are `/attach`, `/model`, `/background`, and `/apply`.
+Select a profile in the REPL with `/model claude` or in the TUI model selector. Use `/mode` or Shift+Tab to cycle through manual approval, `acceptEdits` (built-in file changes only), read-only plan mode, and full access (`/mode extreme`, also `/mode bypass`), which skips tool approval prompts. `/mode dontAsk` denies unapproved actions. The same modes can be selected at startup with `--permission-mode` using Claude Code's names (`default`, `acceptEdits`, `plan`, `dontAsk`, `bypassPermissions`). Shell commands still ask in `acceptEdits`; remembered file-edit approval lasts only for the current session. Existing commands include `/new`, `/list`, `/resume`, `/fork`, `/share`, `/where`, `/cost`, `/plan`, `/approve`, `/mode`, `/undo`, `/reasoning`, `/mcp`, and `/exit`. New commands are `/attach`, `/model`, `/background`, and `/apply`.
 
 In the TUI, Enter sends a message and Shift+Enter adds a line. Paste a file path on its own line or use `/attach path` to stage a file; F8 stages a PNG image from the system clipboard. The attachment list is shown above the composer until the turn is accepted.
 
@@ -101,6 +113,10 @@ See [architecture.md](docs/architecture.md) for the request sequence, approval s
 Built-in tools read, batch-read, write, edit, patch, and delete workspace files; search by filename and content; inspect Git status, diffs, and history; run shell commands and diagnostics; fetch public pages and search the web; manage a task plan; load skills on demand; retrieve archived output; and delegate bounded tasks. File paths are constrained to the workspace. Patches and deletion require review even in aggressive mode. Network tools reject local or private addresses and do not follow redirects. Shell and diagnostic commands have timeout, cancellation, and output limits.
 
 Optional MCP uses the official Python SDK for stdio and Streamable HTTP servers. Server configuration is read from `~/.coderill/mcp.json`. Jev can also make typed choices in ordinary coding sessions: install `.[jev]`, set `TYPESAFE_API_KEY` and `CODERILL_JEV_DECISIONS=1`, then use the `jev_decide` tool when a fixed set of alternatives needs ranking. [Harness² refinement](docs/harness2.md) can use Jev to select the final artifact with `--decision-model jev`. The browser tool remains optional via `.[browser]` and `CODERILL_BROWSER_ENABLED=1`; its DOM reader is adapted from `browser-use/jev-ultrafast` and retains [its license notice](coderill/browser_NOTICE.txt).
+
+MCP tools and Skills can be found by name or description through `mcp_tool_search` and `skill_search`. Optional routing settings belong in the user-level `~/.coderill/config.toml`; project configuration cannot set an external search address. Set `routing.enabled = false` to restore the previous MCP search. Set `[routing.embedding]` with `base_url`, `model`, and `api_key_env` to enable OpenAI-compatible semantic search; the service receives the search query (up to 2,000 characters) and capability names and descriptions, but no additional conversation or file content. A missing or failed service falls back to local search. An optional `light_profile` also requires a matching qualification report before it can handle task-boundary classification or read-only child work. See [routing evaluation](docs/evaluation.md#routing-retrieval-checks).
+
+Windows desktop computer use is optional: install `.[computer]`, set `CODERILL_COMPUTER_ENABLED=1`, `CODERILL_VISION=1`, and `TYPESAFE_API_KEY`, then choose a vision-capable model. The `computer_use` tool captures the primary display and supports screenshots, clicks, dragging, scrolling, ASCII typing, keys, and short waits. Each call follows the current approval mode, including screenshots, and sends the new screen to the model. When several fixed next actions are plausible, the agent uses `jev_decide` to choose one. This runs on the host desktop, outside the Docker sandbox; keep private windows closed before approving a screenshot. Primary-display coordinates are used for input.
 
 ## Offline verification
 

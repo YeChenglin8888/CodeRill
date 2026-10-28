@@ -9,6 +9,7 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any, ClassVar
 
+from .routing import search_capabilities
 from .tools.base import Tool, ToolError
 
 CONFIG_FILE = Path.home() / ".coderill" / "mcp.json"
@@ -39,25 +40,30 @@ class MCPToolSearch(Tool):
         "required": ["query"], "additionalProperties": False,
     }
 
-    def __init__(self, manager: MCPManager) -> None:
+    def __init__(self, manager: MCPManager, embedding: dict[str, str] | None = None,
+                 enabled: bool = True) -> None:
         self.manager = manager
+        self.embedding = embedding
+        self.enabled = enabled
+        self.deadline: float | None = None
 
     def execute(self, query: str) -> str:
-        words = set(re.findall(r"\w+", query.casefold()))
-        if not words:
-            raise ToolError("search query must not be blank")
-        ranked = []
-        for tool in self.manager.tools:
-            name = tool.name.casefold()
-            description = tool.description.casefold()
-            score = sum(10 if word in name else 1 if word in description else 0 for word in words)
-            if score:
-                ranked.append((-score, name, tool))
-        ranked.sort()
-        return json.dumps({"matches": [
-            {"name": tool.name, "description": tool.description[:240]}
-            for _, _, tool in ranked[:8]
-        ]}, ensure_ascii=False)
+        items = [{"name": tool.name, "description": tool.description[:240]} for tool in self.manager.tools]
+        if not self.enabled:
+            words = set(re.findall(r"\w+", query.casefold()))
+            if not words:
+                raise ToolError("search query must not be blank")
+            ranked = sorted((-sum(10 if word in item["name"].casefold() else
+                                    1 if word in item["description"].casefold() else 0 for word in words),
+                              item["name"].casefold(), item) for item in items)
+            return json.dumps({"matches": [item for score, _, item in ranked if score < 0][:8],
+                               "source": "legacy"}, ensure_ascii=False)
+        try:
+            metadata: dict[str, str] = {}
+            matches = search_capabilities(query, items, self.embedding, metadata, self.deadline)
+        except ValueError as exc:
+            raise ToolError(str(exc)) from exc
+        return json.dumps({"matches": matches, **metadata}, ensure_ascii=False)
 
 
 class MCPManager:

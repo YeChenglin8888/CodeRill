@@ -173,6 +173,48 @@ def test_uncited_composition_retries_then_keeps_current_harness():
     assert result["harnesses"]["c1"] == base_harness()
 
 
+@pytest.mark.parametrize("passing", ["inv1", None])
+def test_verification_selects_passing_candidate_and_rejects_unverified_experience(passing):
+    async def probe(label, tree):
+        return {"status": "complete", "trace": f"{label} checked the task inputs",
+                "text": f"{label} delivered a result", "verification": {"passed": label == passing, "checks": []}}
+
+    async def editor(stage, evidence):
+        if stage == "propose":
+            return {"patch": {"system_prompt": evidence["dimension"]}}
+        if stage == "compose":
+            return {"patch": {"system_prompt": "combined"}, "citations": {
+                "base1": "base1 checked the task inputs", "inv1": "inv1 checked the task inputs"}}
+        if stage == "reflect":
+            return {"cue": "When task checks fail", "lesson": "Run the boundary checks before finishing.",
+                    "support": "inv1 checked the task inputs"}
+        raise AssertionError(stage)
+
+    result = asyncio.run(run_harness("task", probe, editor, []))
+    assert result["selection"]["choice"] == ("inv1" if passing else "c1")
+    assert result["selection"]["verified"] is bool(passing)
+    assert (result["experience"] is not None) is bool(passing)
+
+
+def test_verification_keeps_passing_baseline_without_learning_from_regressions():
+    async def probe(label, tree):
+        return {"status": "complete", "trace": f"{label} checked the task inputs",
+                "verification": {"passed": label == "base1", "checks": []}}
+
+    async def editor(stage, evidence):
+        if stage == "propose":
+            return {"patch": {"system_prompt": evidence["dimension"]}}
+        if stage == "compose":
+            return {"patch": {"system_prompt": "combined"}, "citations": {
+                "base1": "base1 checked the task inputs", "inv1": "inv1 checked the task inputs"}}
+        raise AssertionError("baseline needs no reflection")
+
+    result = asyncio.run(run_harness("task", probe, editor, []))
+    assert result["selection"]["choice"] == "base1"
+    assert result["selection"]["verified"] is True
+    assert result["experience"] is None
+
+
 def test_jev_choice_schema_and_opt_in_registry(tmp_path, monkeypatch):
     sent = {}
 

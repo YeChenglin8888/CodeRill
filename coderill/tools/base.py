@@ -10,6 +10,7 @@ mutating ones ask the user first.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -21,6 +22,12 @@ MAX_OUTPUT_CHARS = 30_000
 
 class ToolError(Exception):
     """An expected, user-facing tool failure (bad path, no match, ...)."""
+
+
+@dataclass(frozen=True)
+class ToolOutput:
+    content: str
+    image: bytes
 
 
 class Tool:
@@ -52,7 +59,7 @@ class Tool:
             },
         }
 
-    def execute(self, **kwargs: Any) -> str:  # pragma: no cover - abstract
+    def execute(self, **kwargs: Any) -> str | ToolOutput:  # pragma: no cover - abstract
         raise NotImplementedError
 
 
@@ -106,7 +113,7 @@ class Registry:
     def tools(self) -> list[Tool]:
         return list(self._tools.values())
 
-    def dispatch(self, name: str, arguments: dict[str, Any]) -> str:
+    def dispatch(self, name: str, arguments: dict[str, Any]) -> str | ToolOutput:
         """Run a tool by name, converting expected failures into text."""
         tool = self._tools.get(name)
         if tool is None:
@@ -123,4 +130,4 @@ class Registry:
             return f"Error: bad arguments for '{name}': {exc}"
         except Exception as exc:  # noqa: BLE001 - surface anything else to the model
             return f"Error: {name} failed: {exc}"
-        return truncate(result) if tool.truncate_output else result
+        return truncate(result) if isinstance(result, str) and tool.truncate_output else result

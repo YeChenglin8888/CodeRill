@@ -152,8 +152,23 @@ async def run_harness(task: str, probe, editor, library: list[dict], *,
             current = final["harness"]
             previous = {label: runs[label] for label in (*candidates, final["label"])}
 
+    verified = any("verification" in run for run in runs.values())
+    if verified and not all("verification" in run for run in runs.values()):
+        raise ValueError("every probe must report verification when verification is enabled")
     delivered = [item for item in finals if runs[item["label"]].get("status") == "complete"]
-    if not delivered:
+    if verified:
+        passing = [item for item in delivered if runs[item["label"]]["verification"]["passed"] is True]
+        if not passing:
+            passing = [{"label": label, "harness": trees[label], "citations": {}}
+                       for label in stages if label.startswith(("inv", "dom"))
+                       and runs[label].get("status") == "complete"
+                       and runs[label]["verification"]["passed"] is True]
+        if not passing:
+            passing = [{"label": label, "harness": trees[label], "citations": {}}
+                       for label in baseline if runs[label].get("status") == "complete"
+                       and runs[label]["verification"]["passed"] is True]
+        delivered = passing or [finals[0]]
+    elif not delivered:
         raise RuntimeError("no final harness completed the task")
     if len(delivered) == 1:
         selected = delivered[0]
@@ -181,13 +196,17 @@ async def run_harness(task: str, probe, editor, library: list[dict], *,
         selection = {"choice": selected["label"], "anonymous_choice": choice,
                      "method": "jev" if selector else "editor", "decision": answer}
 
+    if verified:
+        selection["verified"] = runs[selected["label"]]["verification"]["passed"] is True
     reflection_error = ""
-    try:
-        reflection = await editor("reflect", {"task": task, "selection": selection,
-            "harness": selected["harness"], "citations": selected["citations"],
-            "final": runs[selected["label"]], "stages": stages})
-    except Exception as exc:  # noqa: BLE001 - an optional lesson must not discard the completed deliverable
-        reflection, reflection_error = {}, f"{type(exc).__name__}: {exc}"
+    reflection = {}
+    if not verified or (selection["verified"] and selected["label"] not in baseline):
+        try:
+            reflection = await editor("reflect", {"task": task, "selection": selection,
+                "harness": selected["harness"], "citations": selected["citations"],
+                "final": runs[selected["label"]], "stages": stages})
+        except Exception as exc:  # noqa: BLE001 - an optional lesson must not discard the completed deliverable
+            reflection_error = f"{type(exc).__name__}: {exc}"
     experience = None
     if isinstance(reflection, dict) and _quote(runs[selected["label"]], reflection.get("support")):
         lesson, cue = reflection.get("lesson"), reflection.get("cue")

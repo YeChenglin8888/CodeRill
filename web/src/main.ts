@@ -4,12 +4,12 @@ type Message = { role: 'user' | 'assistant' | 'tool'; content: string }
 type Review = { id: string; kind?: string; call: { name: string; arguments: unknown }; diff: string }
 type Profile = { name: string; model: string; provider: string }
 type Background = { id: string; status: string; description: string; result: string }
-type Child = { id: string; task: string; allow_write: boolean; applied: boolean }
+type Child = { id: string; task: string; model?: string; allow_write: boolean; applied: boolean; usage?: { requests: number; input_tokens: number; output_tokens: number } | null }
 type Session = {
   id: string; model: string; provider: string; workspace: string; updated: string; status: string
   messages: Message[]; review: Review | null; plan: string; planMode: boolean; autoApprove: boolean
   mode: string; reasoning: boolean; profiles: Profile[]; attachments: { name: string; size: number }[]
-  usage: { requests: number; input_tokens: number; output_tokens: number; cost: number | null }
+  usage: { requests: number; input_tokens: number; output_tokens: number; cost: number | null; known_cost: number }
   background: Background[]; children: Child[]
   sandbox: { backend: string; profile: string; network: string; approvedDomains: string[]; outside: string[] }
 }
@@ -212,7 +212,7 @@ function render() {
   $('#composer-mode').textContent = current?.planMode ? '计划模式' : `${modes[current?.mode || 'standard']}模式`
   $('#plan').textContent = current?.plan || '暂无计划'
   const usage = current?.usage
-  $('#usage').textContent = usage ? `${usage.requests} 次请求 · ${usage.input_tokens} 输入 / ${usage.output_tokens} 输出 token\n估算费用：${usage.cost === null ? '未知' : `$${usage.cost.toFixed(4)}`}` : '暂无用量'
+  $('#usage').textContent = usage ? `${usage.requests} 次请求 · ${usage.input_tokens} 输入 / ${usage.output_tokens} 输出 token\n估算费用：${usage.cost === null ? `未知（已知部分 $${usage.known_cost.toFixed(4)}）` : `$${usage.cost.toFixed(4)}`}` : '暂无用量'
   const background = $('#background')
   background.replaceChildren()
   for (const item of current?.background || []) {
@@ -225,7 +225,7 @@ function render() {
   for (const child of current?.children || []) {
     const row = document.createElement('div')
     row.className = 'background-item'
-    row.textContent = `子任务 · ${child.task}`
+    row.textContent = `子任务 · ${child.task}${child.usage ? ` · ${child.model || '未知模型'} · ${child.usage.input_tokens} 输入 / ${child.usage.output_tokens} 输出 token` : ''}`
     if (child.allow_write && !child.applied) {
       const button = document.createElement('button')
       button.textContent = '预览改动'

@@ -91,6 +91,18 @@ def test_patch_and_delete_are_reviewed_even_in_aggressive_mode(tmp_path):
     assert registry.dispatch("diagnostics", {"command": "echo checked"}).startswith("diagnostic passed")
 
 
+def test_accept_edits_allows_patch_but_still_reviews_shell(tmp_path):
+    _git(tmp_path, "init")
+    (tmp_path / "a.txt").write_text("old\n")
+    registry = build_registry(tmp_path)
+    manager = ReviewManager(tmp_path, mode=Mode.ACCEPT_EDITS, store=GrantStore(tmp_path / "grants.json"))
+    patch = _patch("a.txt", "old\n", "new\n")
+    assert manager.request(registry.get("apply_patch"),
+                           {"name": "apply_patch", "arguments": {"patch": patch}}) is None
+    assert manager.request(registry.get("bash"),
+                           {"name": "bash", "arguments": {"command": "pytest -q"}}) is not None
+
+
 def test_patch_rejects_workspace_escape(tmp_path):
     _git(tmp_path, "init")
     patch = _patch("../outside.txt", "before\n", "after\n")

@@ -13,6 +13,7 @@ from ..config import Config
 from ..hooks import Hooks
 from ..permissions import Mode, ReviewManager
 from ..providers import create_provider
+from ..routing import qualified_light_config
 from ..runtime import BackgroundTaskManager
 from ..session import Session
 from ..skills import SkillCatalog
@@ -52,7 +53,8 @@ class SubagentService:
         self.children: dict[str, AgentRuntime] = {}
 
     async def delegate(self, task: str, *, allow_write: bool = False, background: bool = False,
-                       plan_task_id: str | None = None, harness_role: str | None = None) -> str:
+                       plan_task_id: str | None = None, harness_role: str | None = None,
+                       force_primary: bool = False) -> str:
         if harness_role is not None and harness_role not in self.harness_roles:
             raise ValueError(f"unknown harness subagent role {harness_role!r}")
         if allow_write and self.config.sandbox_policy.enabled:
@@ -62,11 +64,26 @@ class SubagentService:
         if plan_task_id is not None and (self.plan is None or
                                          not any(item.id == plan_task_id for item in self.plan.tasks)):
             raise ValueError(f"unknown plan task {plan_task_id}")
-        child = Session.new(self.config.model, str(self.config.workspace), self.parent.store)
+        light = qualified_light_config(self.config) if not allow_write and not force_primary else None
+        if light is not None and len(task) + len(self.harness_overlay) + 4096 > light.max_context_tokens:
+            light = None
+        selected = light or self.config
+        light_provider = None
+        if light is not None:
+            try:
+                light_provider = self.provider_factory(light)
+            except Exception as exc:  # noqa: BLE001 - optional provider failure returns to the primary model
+                self.parent.record_routing(stage="subagent", candidates=[light.model, self.config.model],
+                                           selected=self.config.model, model=self.config.model,
+                                           status="fallback", reason=type(exc).__name__)
+                return await self.delegate(task, allow_write=False, background=background,
+                                           plan_task_id=plan_task_id, harness_role=harness_role,
+                                           force_primary=True)
+        child = Session.new(selected.model, str(self.config.workspace), self.parent.store)
         workspace = await self._worktree(child.id) if allow_write else self.config.workspace
         if allow_write:
             child.set_workspace(str(workspace))
-        child_config = replace(self.config, workspace=workspace, max_turns=min(self.config.max_turns, 10))
+        child_config = replace(selected, workspace=workspace, max_turns=min(self.config.max_turns, 10))
         policy = child_config.sandbox_policy
         registry = Registry(workspace, policy)
         for tool in (ReadFileTool(workspace), ReadMultiTool(workspace), GlobTool(workspace), GrepTool(workspace),
@@ -79,8 +96,9 @@ class SubagentService:
             registry.register(ApplyPatchTool(workspace, policy))
             registry.register(DeletePathTool(workspace))
             registry.register(DiagnosticsTool(workspace, policy))
+        provider = light_provider or self.provider_factory(child_config)
         runtime = AgentRuntime(
-            child_config, child, registry, self.provider_factory(child_config),
+            child_config, child, registry, provider,
             ReviewManager(workspace, mode=Mode.AGGRESSIVE, policy=policy),
             hooks=self.hooks, skills=self.skills,
         )
@@ -90,11 +108,19 @@ class SubagentService:
         self.children[child.id] = runtime
         self.parent.record_subagent({
             "id": child.id, "workspace": str(workspace), "allow_write": allow_write,
-            "applied": False, "task": task, "harness_role": harness_role,
+            "applied": False, "task": task, "harness_role": harness_role, "model": selected.model,
         })
+        self.parent.record_routing(stage="subagent", candidates=[self.config.model] + ([light.model] if light else []),
+                                   selected=selected.model, model=selected.model)
 
         async def work() -> str:
             result = await runtime.run_turn(task)
+            if result.status == "failed" and light is not None:
+                self.parent.record_routing(stage="subagent", candidates=[light.model, self.config.model],
+                                           selected=self.config.model, model=self.config.model,
+                                           status="fallback", reason=result.error[:160])
+                return await self.delegate(task, allow_write=False, background=False,
+                                           harness_role=harness_role, force_primary=True)
             if result.status != "complete":
                 raise RuntimeError(f"child session {child.id}: {result.status}: {result.error or result.text}")
             return f"child session {child.id}: {result.status}\n{result.text or result.error}"

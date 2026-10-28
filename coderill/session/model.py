@@ -65,6 +65,8 @@ class Session:
         background_tasks: dict[str, dict] | None = None,
         subagents: dict[str, dict] | None = None,
         usage: dict | None = None,
+        usage_by_model: dict[str, dict] | None = None,
+        routing_events: list[dict] | None = None,
         active_mcp_tools: list[str] | None = None,
         active_task_hash: str | None = None,
         task_candidate: str | None = None,
@@ -94,6 +96,8 @@ class Session:
         self.background_tasks = dict(background_tasks or {})
         self.subagents = dict(subagents or {})
         self.usage = dict(usage or {"requests": 0, "input_tokens": 0, "output_tokens": 0})
+        self.usage_by_model = dict(usage_by_model or {})
+        self.routing_events = list(routing_events or [])
         self.active_mcp_tools = list(active_mcp_tools or [])
         self.active_task_hash = active_task_hash
         self.task_candidate = task_candidate
@@ -211,11 +215,26 @@ class Session:
         self._append({"type": "model_changed", "model": model})
         self.model = model
 
-    def record_usage(self, input_tokens: int, output_tokens: int) -> None:
-        self._append({"type": "usage", "input_tokens": input_tokens, "output_tokens": output_tokens})
+    def record_usage(self, input_tokens: int, output_tokens: int, *, provider: str = "", model: str = "",
+                     kind: str = "main") -> None:
+        self._append({"type": "usage", "input_tokens": input_tokens, "output_tokens": output_tokens,
+                      "provider": provider, "model": model, "kind": kind})
         self.usage["requests"] += 1
         self.usage["input_tokens"] += input_tokens
         self.usage["output_tokens"] += output_tokens
+        key = f"{provider}/{model}" if provider and model else "unknown"
+        row = self.usage_by_model.setdefault(key, {"requests": 0, "input_tokens": 0, "output_tokens": 0})
+        row["requests"] += 1
+        row["input_tokens"] += input_tokens
+        row["output_tokens"] += output_tokens
+
+    def record_routing(self, *, stage: str, candidates: list[str], selected: str = "",
+                       model: str = "", elapsed_ms: int = 0, status: str = "success", reason: str = "") -> None:
+        event = {"type": "routing_decision", "stage": stage, "candidates": candidates,
+                 "selected": selected, "model": model, "elapsed_ms": elapsed_ms,
+                 "status": status, "reason": reason}
+        self._append(event)
+        self.routing_events.append(event)
 
     def record_benchmark_state(self, state: dict) -> None:
         self._append({"type": "benchmark_state", "state": state})

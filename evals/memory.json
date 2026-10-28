@@ -1,0 +1,6 @@
+[
+  {"id":"english-recall","query":"parser pytest","records":[{"key":"tests","content":"Use pytest for parser tests."}],"expected":"Use pytest for parser tests."},
+  {"id":"chinese-recall","query":"部署环境","records":[{"key":"部署环境","content":"部署环境使用测试服务器。"}],"expected":"部署环境使用测试服务器。"},
+  {"id":"updated-rule","query":"parser test command","records":[{"key":"test command","content":"Run parser tests using pytest."},{"key":"test command","content":"Run parser tests using unittest.","update":true}],"expected":"Run parser tests using unittest.","stale":["Run parser tests using pytest."]},
+  {"id":"abstain","query":"database migration credentials","records":[{"key":"tests","content":"Run parser tests with pytest."}],"expected":null}
+]

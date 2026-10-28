@@ -21,7 +21,8 @@ def estimate_request_tokens(system: str, tools: tuple[ToolDefinition, ...], mess
     chars += len(json.dumps(messages, ensure_ascii=False))
     for message in messages:
         for part in message.get("attachments", []):
-            chars += int(part.get("size", 0)) * 2
+            chars += (16_000 if part.get("media_type", "").startswith("image/") else
+                      int(part.get("size", 0)) * 2)
     return chars // 4 + 16 * (len(messages) + len(tools)) + output
 
 

@@ -207,7 +207,8 @@ class DockerJob:
     """Own exactly one command container, proxy container, and IPC volume."""
 
     def __init__(self, policy: SandboxPolicy, *, extra_domains: tuple[str, ...] = (),
-                 ports: tuple[int, ...] = (), session_id: str = "") -> None:
+                 ports: tuple[int, ...] = (), session_id: str = "",
+                 verifier_dir: Path | None = None) -> None:
         self.policy = policy
         if any(domain not in _NETWORK_GRANT.get() for domain in extra_domains if domain not in DEFAULT_DOMAINS):
             raise SandboxError("network domain requires a granted sandbox review")
@@ -222,6 +223,9 @@ class DockerJob:
         self.volume = f"coderill-ipc-{self.id[:20]}"
         self.network_name = f"coderill-net-{self.id[:20]}"
         self.session_id = session_id
+        self.verifier_dir = verifier_dir.resolve() if verifier_dir is not None else None
+        if self.verifier_dir is not None and not self.verifier_dir.is_dir():
+            raise ValueError("verifier directory is missing")
         self._config_dir: tempfile.TemporaryDirectory[str] | None = None
         self._created = False
         self._closed = threading.Event()
@@ -319,6 +323,8 @@ class DockerJob:
                 if denied.is_file():
                     file_targets.append(target)
             worker_args += mask_mounts
+            if self.verifier_dir is not None:
+                worker_args += ["--mount", f"type=bind,src={self.verifier_dir},dst=/verifier,readonly"]
             if file_targets:
                 probe = ["run", "--rm", "--network", "none", "--read-only", "--mount",
                          f"type=bind,src={root},dst=/workspace,readonly", *mask_mounts]

@@ -11,7 +11,11 @@ from ..review import build_prewrite_review
 from ..sandbox import SandboxPolicy, check_active_path, policy_scope
 from ..tools.advanced import patch_targets
 from ..tools.base import Tool, resolve_path
-from .policy import GrantStore, Mode, Request, classify, default_scope
+from .policy import Grant, GrantStore, Mode, Request, classify, default_scope
+
+
+class ReviewDenied(PermissionError):
+    pass
 
 
 class ReviewManager:
@@ -21,6 +25,15 @@ class ReviewManager:
         self.policy = policy
         self.mode = mode
         self.store = store or GrantStore()
+        self._session_computer_grant = False
+        self._session_grants: set[Grant] = set()
+        self._session_id: str | None = None
+
+    def use_session(self, session_id: str) -> None:
+        if session_id != self._session_id:
+            self._session_grants.clear()
+            self._session_computer_grant = False
+            self._session_id = session_id
 
     @property
     def allow_all(self) -> bool:
@@ -36,16 +49,24 @@ class ReviewManager:
             return None
         name = call["name"]
         args = call["arguments"]
+        if name == "computer_use" and self._session_computer_grant:
+            return None
         with policy_scope(self.policy):
             targets = self._targets(name, args)
         target = targets[0] if len(targets) == 1 else None
         permission = classify(name, args, str(self.workspace)) or Request(name, "tool", "", str(self.workspace))
         if target is not None and permission.action == "filesystem":
             permission = Request(name, "filesystem", str(target), str(self.workspace))
-        if self.store.match(permission) is not None:
+        if (permission.action in ("filesystem", "delete") and
+                any(grant.matches(permission) for grant in self._session_grants)) or (
+                permission.action not in ("filesystem", "delete") and self.store.match(permission) is not None):
             return None
         if self.mode is Mode.AGGRESSIVE and permission.action in ("filesystem", "shell"):
             return None
+        if self.mode is Mode.ACCEPT_EDITS and permission.action in ("filesystem", "patch", "delete"):
+            return None
+        if self.mode is Mode.DONT_ASK:
+            raise ReviewDenied(f"refused: {name} is not pre-approved in dontAsk mode")
         return self._build(call, targets)
 
     def refresh(self, review: dict[str, Any]) -> dict[str, Any] | None:
@@ -61,6 +82,9 @@ class ReviewManager:
 
     def remember(self, review: dict[str, Any]) -> None:
         call = review["call"]
+        if call["name"] == "computer_use":
+            self._session_computer_grant = True
+            return
         permission = classify(call["name"], call["arguments"], str(self.workspace))
         if permission is None:
             return
@@ -68,7 +92,10 @@ class ReviewManager:
             permission = Request(call["name"], "filesystem", review["target"], str(self.workspace))
         scope = default_scope(permission)
         if scope is not None:
-            self.store.add(scope)
+            if permission.action in ("filesystem", "delete"):
+                self._session_grants.add(scope)
+            else:
+                self.store.add(scope)
 
     def _build(self, call: dict[str, Any], targets: list[Path]) -> dict[str, Any]:
         target = targets[0] if len(targets) == 1 else None

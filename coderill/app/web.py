@@ -17,7 +17,7 @@ from rich.console import Console
 
 from .. import __version__
 from ..config import Config
-from ..providers.openai_compatible import Usage
+from ..providers.openai_compatible import session_cost
 from ..session import Session
 from .cli import HELP_TEXT, _handle_command
 from .factory import build_state
@@ -28,7 +28,19 @@ DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 
 
 def session_data(session: Session, state: State) -> dict:
-    usage = Usage(**session.usage)
+    known_cost, complete_cost = session_cost(session.usage_by_model)
+    if state.config.routing.get("embedding") and any(
+            item.get("stage") in ("mcp_search", "skill_search") for item in session.routing_events):
+        complete_cost = False
+    children = []
+    for child in session.subagents.values():
+        item = dict(child)
+        try:
+            child_session = Session.load(child["id"], session.store)
+            item["usage"] = child_session.usage
+        except (OSError, ValueError, KeyError):
+            item["usage"] = None
+        children.append(item)
     return {
         "id": session.id, "model": state.config.model, "provider": state.config.provider,
         "workspace": session.workspace, "updated": session.updated, "status": session.last_status,
@@ -38,14 +50,15 @@ def session_data(session: Session, state: State) -> dict:
         "sandbox": {"backend": state.config.sandbox, "profile": state.config.sandbox_profile,
                     "network": state.config.sandbox_network,
                     "approvedDomains": list(state.agent.approved_domains),
-                    "outside": ["hooks", "MCP", "browser", "fetch", "web_search"]},
+                    "outside": ["hooks", "MCP", "browser", "computer_use", "fetch", "web_search"]},
         "profiles": [
             {"name": name, "model": profile.get("model", ""), "provider": profile.get("provider", "")}
             for name, profile in state.config.profiles.items()
         ],
         "attachments": [{"name": item["name"], "size": item["size"]} for item in state.pending_attachments],
-        "usage": {**session.usage, "cost": usage.cost(state.config.model)},
-        "background": list(session.background_tasks.values()), "children": list(session.subagents.values()),
+        "usage": {**session.usage, "cost": known_cost if complete_cost else None,
+                  "known_cost": known_cost, "by_model": session.usage_by_model},
+        "background": list(session.background_tasks.values()), "children": children,
         "messages": [
             {"role": item["role"], "content": item["content"][:1200] if item["role"] == "tool" else item["content"]}
             for item in session.messages
@@ -324,7 +337,7 @@ class WebHandler(BaseHTTPRequestHandler):
             return {"message": "没有待应用的修改" if not diff else "请检查差异后再应用",
                     "applyPreview": {"childId": rest, "diff": diff} if diff else None}
         if command not in {"/help", "/where", "/cost", "/share", "/undo", "/plan", "/approve",
-                           "/mode", "/reasoning", "/attach", "/model"}:
+                           "/mode", "/reasoning", "/attach", "/model", "/memory"}:
             raise ValueError(f"未知命令：{command}")
         output = io.StringIO()
         console = Console(file=output, force_terminal=False, color_system=None, width=120)

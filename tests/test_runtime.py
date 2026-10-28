@@ -68,6 +68,29 @@ def test_reasoning_survives_tool_round_and_session_replay(tmp_path):
     ]
 
 
+def test_dont_ask_denies_unapproved_tool_without_waiting(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    provider = Provider(ChatResponse("", (ToolCall("w", "write_file", {"path": "a.txt", "content": "x"}),)),
+                        ChatResponse("done"))
+    runner = runtime(tmp_path, session, provider, Mode.DONT_ASK)
+    result = asyncio.run(runner.run_turn("write"))
+    assert result.status == "complete"
+    assert session.finished_calls["w"]["status"] == "denied"
+    assert not (tmp_path / "a.txt").exists()
+
+
+def test_plan_mode_blocks_writes_even_with_bypass_permissions(tmp_path):
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    provider = Provider(ChatResponse("", (ToolCall("w", "write_file", {"path": "a.txt", "content": "x"}),)),
+                        ChatResponse("plan"))
+    runner = runtime(tmp_path, session, provider, Mode.BYPASS)
+    runner.plan_mode = True
+    result = asyncio.run(runner.run_turn("plan a change"))
+    assert result.status == "complete"
+    assert session.finished_calls["w"]["status"] == "denied"
+    assert not (tmp_path / "a.txt").exists()
+
+
 def test_model_reply_language_follows_latest_user_message(tmp_path):
     session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
     provider = Provider(ChatResponse("好的"), ChatResponse("Done"))
@@ -428,3 +451,31 @@ def test_cancel_during_hidden_task_classification(tmp_path):
 
     assert asyncio.run(scenario()).status == "cancelled"
     assert session.last_status == "cancelled"
+
+
+def test_light_classifier_falls_back_without_losing_user_turn(monkeypatch, tmp_path):
+    from dataclasses import replace
+
+    class MainProvider(Provider):
+        async def complete(self, _request):
+            return ChatResponse('{"decision":"same"}')
+
+    class LightProvider:
+        async def complete(self, _request):
+            raise TimeoutError("light model unavailable")
+
+    session = Session.new("fake", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    provider = MainProvider(ChatResponse("first"), ChatResponse("second"))
+    runner = runtime(tmp_path, session, provider, Mode.BYPASS)
+    monkeypatch.setattr("coderill.agent.runtime.qualified_light_config",
+                        lambda config: replace(config, model="small"))
+    monkeypatch.setattr("coderill.agent.runtime.create_provider", lambda _config: LightProvider())
+
+    async def turns():
+        assert (await runner.run_turn("first")).status == "complete"
+        return await runner.run_turn("continue")
+
+    assert asyncio.run(turns()).status == "complete"
+    assert session.routing_events[-2]["status"] == "failed"
+    assert session.routing_events[-1]["selected"] == "fake"
+    assert session.turn_requests == 3  # light classification, primary fallback, answer

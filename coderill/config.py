@@ -41,6 +41,7 @@ class Config:
     vision: bool = False
     thinking_enabled: bool = True
     profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
+    routing: dict[str, Any] = field(default_factory=lambda: {"enabled": True})
     max_tokens: int = 4096
     temperature: float = 0.0
     max_turns: int = 30
@@ -52,6 +53,7 @@ class Config:
     benchmark: bool = False
     # Jev / browser-task settings.
     browser_enabled: bool = False
+    computer_enabled: bool = False
     browser_channel: str = "msedge"
     typesafe_api_key: str = ""
     typesafe_model: str = "jev-latest"
@@ -107,22 +109,27 @@ class Config:
                 os.environ[name] = original
         values: dict[str, Any] = {"workspace": ws}
         profiles: dict[str, dict[str, Any]] = {}
+        routing: dict[str, Any] = {"enabled": True}
         sandbox_fields = {"sandbox", "sandbox_profile", "sandbox_network", "sandbox_image", "sandbox_ports",
                           "deny_read_paths", "sandbox_cpus", "sandbox_memory", "sandbox_pids"}
         for path in (Path.home() / ".coderill" / "config.toml", ws / ".coderill.toml"):
             data = _toml(path)
             values.update({key: value for key, value in data.items()
-                           if key in cls.__dataclass_fields__ and key not in ("profiles", "workspace")
+                           if key in cls.__dataclass_fields__ and key not in ("profiles", "routing", "workspace")
                            and (key not in sandbox_fields or path.parent == global_env.parent)})
-            profiles.update(data.get("models", {}))
+            profiles.update({name: profile for name, profile in data.get("models", {}).items()
+                             if path.parent == global_env.parent or name != routing.get("light_profile")})
+            if path.parent == global_env.parent:
+                routing.update(data.get("routing", {}))
         values["profiles"] = profiles
+        values["routing"] = routing
         selected = (overrides or {}).get("profile") or os.getenv("CODERILL_PROFILE")
         if selected:
             if selected not in profiles:
                 raise ValueError(f"unknown model profile '{selected}'")
             profile = profiles[selected]
             values.update({key: value for key, value in profile.items()
-                           if key in cls.__dataclass_fields__ and key not in sandbox_fields | {"workspace"}})
+                           if key in cls.__dataclass_fields__ and key not in sandbox_fields | {"workspace", "routing"}})
             if profile.get("api_key_env"):
                 values["api_key"] = os.getenv(str(profile["api_key_env"]), "")
         env_values: dict[str, tuple[str, Any]] = {
@@ -144,6 +151,8 @@ class Config:
             if os.getenv(name) is not None:
                 values[field_name] = convert(os.environ[name])
         values["browser_enabled"] = os.getenv("CODERILL_BROWSER_ENABLED") == "1" or values.get("browser_enabled", False)
+        values["computer_enabled"] = os.getenv("CODERILL_COMPUTER_ENABLED") == "1" or values.get("computer_enabled", False)
+        values["vision"] = os.getenv("CODERILL_VISION") == "1" or values.get("vision", False)
         values["jev_decisions_enabled"] = (os.getenv("CODERILL_JEV_DECISIONS") == "1" or
                                             values.get("jev_decisions_enabled", False))
         values["typesafe_api_key"] = os.getenv("TYPESAFE_API_KEY", values.get("typesafe_api_key", ""))
@@ -156,6 +165,17 @@ class Config:
         if sandbox_env["CODERILL_SANDBOX_PORTS"]:
             values["sandbox_ports"] = parse_ports(sandbox_env["CODERILL_SANDBOX_PORTS"].split(","))
         values.update({key: value for key, value in (overrides or {}).items() if key != "profile" and value is not None})
+        routing = values["routing"]
+        if not isinstance(routing, dict) or not isinstance(routing.get("enabled", True), bool):
+            raise TypeError("routing.enabled must be a boolean")
+        for name in ("light_profile", "qualification_report"):
+            if name in routing and (not isinstance(routing[name], str) or not routing[name].strip()):
+                raise ValueError(f"routing.{name} must be a non-empty string")
+        embedding = routing.get("embedding")
+        if embedding is not None and (not isinstance(embedding, dict) or
+                                      not all(isinstance(embedding.get(key), str) and embedding[key]
+                                              for key in ("base_url", "model", "api_key_env"))):
+            raise ValueError("routing.embedding requires base_url, model and api_key_env")
         if isinstance(values.get("sandbox_ports"), list):
             values["sandbox_ports"] = parse_ports(values["sandbox_ports"])
         if isinstance(values.get("deny_read_paths"), list):
@@ -175,6 +195,8 @@ class Config:
             raise RuntimeError(f"No API key found for {provider}. Add {key_name}=<your-key> to {global_env}, "
                                "or set CODERILL_API_KEY in your environment.")
         config = cls(**values)
+        if config.computer_enabled and (not config.vision or not config.typesafe_api_key):
+            raise ValueError("computer use requires CODERILL_VISION=1 and TYPESAFE_API_KEY")
         if config.sandbox == "docker" and workspace and Path(workspace).expanduser().is_symlink():
             raise ValueError("sandbox workspace root cannot be a symlink")
         _ = config.sandbox_policy  # validate before a turn can run

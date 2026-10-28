@@ -76,3 +76,61 @@ def test_harness_context_reaches_read_only_child(tmp_path):
         await service.close()
 
     asyncio.run(scenario())
+
+
+def test_read_only_child_retries_primary_after_light_failure(monkeypatch, tmp_path):
+    from dataclasses import replace
+
+    class FailingProvider:
+        async def stream(self, _request):
+            raise TimeoutError("light unavailable")
+            yield  # pragma: no cover
+
+    class DoneProvider:
+        async def stream(self, _request):
+            yield ChatStreamEvent("completed", response=ChatResponse("done"))
+
+    monkeypatch.setattr("coderill.agent.subagents.qualified_light_config",
+                        lambda config: replace(config, model="small"))
+    session = Session.new("main", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    config = Config(api_key="unused", workspace=tmp_path, model="main")
+    service = SubagentService(config, session,
+                              provider_factory=lambda child: FailingProvider() if child.model == "small" else DoneProvider())
+
+    async def scenario():
+        result = await service.delegate("inspect")
+        await service.close()
+        return result
+
+    assert "done" in asyncio.run(scenario())
+    assert [child["model"] for child in session.subagents.values()] == ["small", "main"]
+    assert session.routing_events[-1]["status"] == "success"
+
+
+def test_read_only_child_falls_back_if_light_provider_cannot_start(monkeypatch, tmp_path):
+    from dataclasses import replace
+
+    class DoneProvider:
+        async def stream(self, _request):
+            yield ChatStreamEvent("completed", response=ChatResponse("done"))
+
+    monkeypatch.setattr("coderill.agent.subagents.qualified_light_config",
+                        lambda config: replace(config, model="small"))
+    session = Session.new("main", str(tmp_path), SessionStore(tmp_path / "sessions"))
+    config = Config(api_key="unused", workspace=tmp_path, model="main")
+
+    def provider(child):
+        if child.model == "small":
+            raise RuntimeError("not supported")
+        return DoneProvider()
+
+    service = SubagentService(config, session, provider_factory=provider)
+
+    async def scenario():
+        result = await service.delegate("inspect")
+        await service.close()
+        return result
+
+    assert "done" in asyncio.run(scenario())
+    assert [child["model"] for child in session.subagents.values()] == ["main"]
+    assert any(item["status"] == "fallback" for item in session.routing_events)

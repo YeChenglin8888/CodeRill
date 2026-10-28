@@ -1,0 +1,56 @@
+{
+  "mcp": {
+    "items": [
+      {"name": "mcp__files__search_documents", "description": "Search documents and locate files 搜索文档 文件"},
+      {"name": "mcp__calendar__list_events", "description": "List calendar events and meetings 日历 会议"},
+      {"name": "mcp__mail__send_message", "description": "Send email messages 邮件 发送"},
+      {"name": "mcp__github__find_issues", "description": "Find GitHub issues and bug reports 问题 缺陷"},
+      {"name": "mcp__github__read_pull_request", "description": "Read pull requests and code changes 合并请求 代码变更"},
+      {"name": "mcp__sheets__read_cells", "description": "Read spreadsheet cells and ranges 表格 单元格"},
+      {"name": "mcp__contacts__find_person", "description": "Find people and contacts 联系人 人员"},
+      {"name": "mcp__browser__open_page", "description": "Open a web page or site 网页 网站"},
+      {"name": "mcp__drive__download_file", "description": "Download a cloud file 下载 云端文件"},
+      {"name": "mcp__tasks__list_tasks", "description": "List tasks and to-do items 待办 任务"}
+    ],
+    "queries": [
+      {"target": "mcp__files__search_documents", "texts": ["search documents", "find a document", "搜索文档", "查找文件", "look for project files"]},
+      {"target": "mcp__calendar__list_events", "texts": ["list calendar events", "show meetings", "查看日历", "会议安排", "find calendar events"]},
+      {"target": "mcp__mail__send_message", "texts": ["send email", "write a mail message", "发送邮件", "邮件发送", "send message by mail"]},
+      {"target": "mcp__github__find_issues", "texts": ["find GitHub issues", "search bug reports", "查找问题", "查看缺陷", "issues on GitHub"]},
+      {"target": "mcp__github__read_pull_request", "texts": ["read pull request", "inspect code changes", "合并请求", "查看代码变更", "GitHub pull request"]},
+      {"target": "mcp__sheets__read_cells", "texts": ["read spreadsheet cells", "inspect a cell range", "读取表格", "查看单元格", "spreadsheet range"]},
+      {"target": "mcp__contacts__find_person", "texts": ["find a contact", "look up a person", "查找联系人", "寻找人员", "contact directory"]},
+      {"target": "mcp__browser__open_page", "texts": ["open web page", "visit a site", "打开网页", "访问网站", "web page browser"]},
+      {"target": "mcp__drive__download_file", "texts": ["download cloud file", "download a file", "下载云端文件", "从云端下载", "cloud file download"]},
+      {"target": "mcp__tasks__list_tasks", "texts": ["list to-do items", "show tasks", "查看待办", "列出任务", "task list"]}
+    ],
+    "negative_queries": ["explain this code", "hello", "what is two plus two", "说个笑话", "总结这段话"]
+  },
+  "skill": {
+    "items": [
+      {"name": "test", "description": "Run and diagnose tests 测试"},
+      {"name": "review", "description": "Review code for bugs and regressions 代码审查"},
+      {"name": "release", "description": "Prepare a software release 发布版本"},
+      {"name": "migrate", "description": "Plan database schema migrations 数据库迁移"},
+      {"name": "docs", "description": "Write project documentation 文档"},
+      {"name": "security", "description": "Check security issues 安全检查"},
+      {"name": "frontend", "description": "Build user interfaces and pages 前端页面"},
+      {"name": "performance", "description": "Measure and improve performance 性能优化"},
+      {"name": "deploy", "description": "Deploy an application 部署应用"},
+      {"name": "resume", "description": "Prepare a job resume 求职简历"}
+    ],
+    "queries": [
+      {"target": "test", "texts": ["run tests", "diagnose a test failure", "运行测试", "排查测试", "test suite"]},
+      {"target": "review", "texts": ["review code", "find code bugs", "代码审查", "审查代码", "regression review"]},
+      {"target": "release", "texts": ["prepare release", "publish a version", "发布版本", "软件发布", "release checklist"]},
+      {"target": "migrate", "texts": ["database migration", "change database schema", "数据库迁移", "迁移数据", "schema migration"]},
+      {"target": "docs", "texts": ["write documentation", "update project docs", "编写文档", "项目文档", "documentation guide"]},
+      {"target": "security", "texts": ["check security", "find security issues", "安全检查", "排查安全问题", "security audit"]},
+      {"target": "frontend", "texts": ["build a user interface", "make a frontend page", "前端页面", "开发界面", "interface design"]},
+      {"target": "performance", "texts": ["measure performance", "improve application speed", "性能优化", "分析性能", "performance benchmark"]},
+      {"target": "deploy", "texts": ["deploy application", "set up deployment", "部署应用", "上线部署", "application deploy"]},
+      {"target": "resume", "texts": ["prepare resume", "edit a job resume", "求职简历", "修改简历", "resume for internship"]}
+    ],
+    "negative_queries": ["hello", "tell a joke", "what time is it", "解释一下", "just answer"]
+  }
+}

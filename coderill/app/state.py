@@ -15,6 +15,7 @@ from ..config import Config
 from ..hooks import Hooks
 from ..llm import LLM
 from ..mcp import MCPManager
+from ..memory import MemoryStore
 from ..permissions import ReviewManager
 from ..providers import create_provider
 from ..providers.types import ChatStreamEvent
@@ -26,8 +27,9 @@ from ..taskplan import TaskPlan
 from ..tools import Tool, build_registry
 from ..tools.agent import BackgroundCancelTool, BackgroundNotificationsTool, BackgroundStatusTool, DelegateTool
 from ..tools.archive import ArchiveReadTool
+from ..tools.memory import MemoryReadTool, MemorySearchTool
 from ..tools.services import ProcessLogsTool, ProcessStartTool, ProcessStatusTool, ProcessStopTool
-from ..tools.skills import LoadSkillTool
+from ..tools.skills import LoadSkillTool, SkillSearchTool
 from ..tools.taskplan import task_plan_tools
 
 
@@ -51,8 +53,12 @@ class State:
     service_processes: dict[str, ServiceProcessManager] = field(default_factory=dict)
 
     def rebuild(self, provider=None) -> None:
+        self.permission.use_session(self.session.id)
         registry = build_registry(self.config.workspace, llm=self.llm, config=self.config, extra_tools=self.mcp.tools)
         registry.register(ArchiveReadTool(self.session))
+        memory = MemoryStore(self.config.workspace)
+        registry.register(MemorySearchTool(memory))
+        registry.register(MemoryReadTool(memory))
         service = self.subagent_services.get(self.session.id)
         if service is None:
             service = SubagentService(self.config, self.session)
@@ -72,6 +78,8 @@ class State:
             skills = SkillCatalog.from_snapshot(self.session.skill_snapshot, self.session)
         if skills:
             registry.register(LoadSkillTool(skills))
+            if self.config.routing.get("enabled", True):
+                registry.register(SkillSearchTool(skills, self.config.routing.get("embedding")))
         for tool in task_plan_tools(plan):
             registry.register(tool)
         processes = self.service_processes.get(self.session.id)
@@ -95,6 +103,7 @@ class State:
             mcp=self.mcp,
             collect_background=service.collect_background,
             on_event=self._on_event,
+            memory=memory,
         )
         self.agent.plan_mode = self.plan_mode
 

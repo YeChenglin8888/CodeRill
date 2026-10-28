@@ -155,14 +155,21 @@ def diff_harness(before: dict, after: dict) -> dict[str, list[str]]:
             "modified": sorted(path for path in old.keys() & new.keys() if old[path] != new[path])}
 
 
-def bind_harness(tree: dict, workspace: Path) -> tuple[str, SkillCatalog, HarnessHooks]:
+def bind_harness(tree: dict, workspace: Path, *, root: Path | None = None) -> tuple[str, SkillCatalog, HarnessHooks]:
     """Materialize code and skill files only inside an isolated probe workspace."""
-    root = workspace / ".harness2"
-    write_harness(tree, root)
+    if root is None:
+        root = workspace / ".harness2"
+        write_harness(tree, root)
+    elif root.exists():
+        if read_harness(root) != tree:
+            raise ValueError("materialized harness differs from the selected candidate")
+    else:
+        write_harness(tree, root)
     catalog = SkillCatalog([root / "skills", *default_roots(workspace)])
     sections = [(name.replace("_", " ").title(), tree[name]) for name in _TEXT if tree[name]]
     if tree["scripts"]:
-        sections.append(("Scripts", "Available in .harness2/scripts/: " + ", ".join(
+        scripts = (root / "scripts").relative_to(workspace).as_posix()
+        sections.append(("Scripts", f"Available in {scripts}/: " + ", ".join(
             f"{name}.py" for name in sorted(tree["scripts"]))))
     if tree["subagents"]:
         sections.append(("Subagent Roles", "\n".join(f"{name}: {body}" for name, body in

@@ -63,7 +63,9 @@ def test_always_creates_a_path_scoped_grant(tmp_path):
     # A different path is not covered by the grant, so the asker runs again.
     refusal = permission.check(registry.get("write_file"), {"path": "other.py", "content": "x"})
     assert refusal.startswith("refused")
-    assert store.grants[0].pattern == "src/a.py"
+    assert not store.grants
+    assert Permission(ask=lambda *_: False, store=store).check(
+        registry.get("write_file"), {"path": "src/a.py", "content": "x"}).startswith("refused")
 
 
 def test_aggressive_mode_auto_allows_filesystem_but_not_agent(tmp_path):
@@ -73,6 +75,27 @@ def test_aggressive_mode_auto_allows_filesystem_but_not_agent(tmp_path):
     registry.register(DelegateTool(object()))
     assert permission.check(registry.get("write_file"), {"path": "a.py", "content": "x"}) is None
     assert permission.check(registry.get("agent"), {"task": "x"}).startswith("refused")
+
+
+def test_accept_edits_allows_file_tools_but_asks_for_shell(tmp_path):
+    registry = build_registry(tmp_path)
+    permission = Permission(ask=lambda *_: False, mode=Mode.ACCEPT_EDITS,
+                            store=GrantStore(tmp_path / "grants.json"))
+    for name, args in (("write_file", {"path": "a.txt"}),
+                       ("apply_patch", {"patch": ""}),
+                       ("delete_path", {"path": "a.txt"})):
+        assert permission.check(registry.get(name), args) is None
+    assert permission.check(registry.get("bash"), {"command": "echo hello"}).startswith("refused")
+
+
+def test_dont_ask_respects_existing_grants_without_prompt(tmp_path):
+    store = GrantStore(tmp_path / "grants.json")
+    store.add(default_scope(classify("bash", {"command": "git status"})))
+    permission = Permission(ask=lambda *_: (_ for _ in ()).throw(AssertionError("prompted")),
+                            mode=Mode.DONT_ASK, store=store)
+    bash = build_registry(tmp_path).get("bash")
+    assert permission.check(bash, {"command": "git status"}) is None
+    assert "dontAsk" in permission.check(bash, {"command": "git commit"})
 
 
 def test_saved_grants_reload_from_disk(tmp_path):

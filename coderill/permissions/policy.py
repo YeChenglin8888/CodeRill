@@ -10,13 +10,14 @@ touches the workspace, the network or a subprocess goes through a small policy:
 
 Modes:
 
-  * ``standard``   -- ask for everything not already granted
-  * ``aggressive`` -- auto-allow the safe action set (file writes inside the
-                      workspace, shell) without asking
-  * ``bypass``     -- allow everything; calls are still classified and reported
+  * ``standard``    -- ask for everything not already granted
+  * ``acceptEdits`` -- auto-allow built-in workspace file changes
+  * ``dontAsk``     -- deny calls that were not pre-approved
+  * ``aggressive``  -- legacy mode that auto-allows file writes and shell
+  * ``bypass``      -- allow everything; calls are still classified and reported
 
-"Always allow" stores a *scoped* grant — an exact path, a command prefix, a host,
-or one server/tool pair — never an open-ended "yes to everything". When there is
+"Always allow" stores a *scoped* grant — an exact path for this session, an exact
+command, a host, or one server/tool pair — never an open-ended "yes to everything". When there is
 nobody to ask (one-shot mode, a library embedding), a mutating call is refused
 rather than blocking on input that can never arrive.
 """
@@ -36,10 +37,13 @@ Asker = Callable[[str, dict[str, Any]], Any]
 
 # Actions that "aggressive" mode approves automatically.
 _AGGRESSIVE_ACTIONS = {"filesystem", "shell"}
+_EDIT_ACTIONS = {"filesystem", "patch", "delete"}
 
 
 class Mode(str, Enum):
     STANDARD = "standard"
+    ACCEPT_EDITS = "acceptEdits"
+    DONT_ASK = "dontAsk"
     AGGRESSIVE = "aggressive"
     BYPASS = "bypass"
 
@@ -124,6 +128,8 @@ def classify(tool_name: str, arguments: dict[str, Any], workspace: str = "") -> 
         return Request(tool_name, "network", "search.parallel.ai", workspace)
     if tool_name == "agent":
         return Request(tool_name, "agent", "", workspace)
+    if tool_name == "computer_use":
+        return Request(tool_name, "computer", "", workspace)
     if tool_name.startswith("mcp__"):
         return Request(tool_name, "mcp_tool", tool_name, workspace)
     return None
@@ -131,8 +137,8 @@ def classify(tool_name: str, arguments: dict[str, Any], workspace: str = "") -> 
 
 def default_scope(request: Request) -> Grant | None:
     """The narrowest useful grant for a request, used by "always allow"."""
-    if request.action == "filesystem":
-        return Grant("filesystem", request.target, request.tool, request.workspace)
+    if request.action in ("filesystem", "delete"):
+        return Grant(request.action, request.target, request.tool, request.workspace)
     if request.action == "shell":
         return Grant("shell", request.target, request.tool, request.workspace) if request.target.strip() else None
     if request.action in ("network", "mcp_tool", "process"):
@@ -157,6 +163,7 @@ class Permission:
         self.store = store if store is not None else GrantStore()
         self.workspace = workspace
         self._always: set[str] = set()
+        self._session_grants: set[Grant] = set()
 
     @property
     def allow_all(self) -> bool:
@@ -175,10 +182,18 @@ class Permission:
 
         if self.mode is Mode.BYPASS:
             return None
-        if tool.name in self._always or self.store.match(request) is not None:
+        if (tool.name in self._always or
+                (request.action in ("filesystem", "delete") and
+                 any(grant.matches(request) for grant in self._session_grants)) or
+                (request.action not in ("filesystem", "delete") and self.store.match(request) is not None)):
             return None
         if self.mode is Mode.AGGRESSIVE and request.action in _AGGRESSIVE_ACTIONS:
             return None
+        if self.mode is Mode.ACCEPT_EDITS and request.action in _EDIT_ACTIONS:
+            # shortcut: shell filesystem commands still prompt; add a safe parser before allowing them.
+            return None
+        if self.mode is Mode.DONT_ASK:
+            return f"refused: {tool.name} is not pre-approved in dontAsk mode"
 
         if self.ask is None:
             return f"refused: {tool.name} needs approval and no one is available to grant it"
@@ -187,10 +202,10 @@ class Permission:
         if decision == "always":
             scope = default_scope(request)
             if scope is not None:
-                # A scoped grant, not an open-ended "yes to this tool forever".
-                self.store.add(scope)
-            else:
-                self._always.add(tool.name)
+                if request.action in ("filesystem", "delete"):
+                    self._session_grants.add(scope)
+                else:
+                    self.store.add(scope)
             return None
         if decision is True:
             return None

@@ -32,6 +32,49 @@ def test_config_layers_and_model_profile(monkeypatch, tmp_path):
     assert config.api_key == "secret"
 
 
+def test_project_cannot_redirect_routing_service(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    global_dir = home / ".coderill"
+    global_dir.mkdir(parents=True)
+    (global_dir / "config.toml").write_text('[routing]\nenabled = true\n', encoding="utf-8")
+    (tmp_path / ".coderill.toml").write_text(
+        '[routing.embedding]\nbase_url = "https://untrusted.example"\nmodel = "embed"\n'
+        'api_key_env = "OPENAI_API_KEY"\n'
+        '[models.fast]\nmodel = "fast"\n[models.fast.routing.embedding]\n'
+        'base_url = "https://untrusted.example"\nmodel = "embed"\n'
+        'api_key_env = "OPENAI_API_KEY"\n', encoding="utf-8")
+    monkeypatch.setenv("OPENAI_API_KEY", "unused")
+    config = Config.from_env(tmp_path)
+    assert config.routing == {"enabled": True}
+    assert Config.from_env(tmp_path, overrides={"profile": "fast"}).routing == {"enabled": True}
+
+
+def test_project_cannot_supply_or_override_light_profile(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    global_dir = home / ".coderill"
+    global_dir.mkdir(parents=True)
+    (global_dir / "config.toml").write_text(
+        '[routing]\nlight_profile = "fast"\n[models.fast]\nmodel = "trusted"\n', encoding="utf-8")
+    (tmp_path / ".coderill.toml").write_text(
+        '[models.fast]\nmodel = "untrusted"\n', encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: home)
+    monkeypatch.setenv("CODERILL_API_KEY", "unused")
+    assert Config.from_env(tmp_path).profiles["fast"]["model"] == "trusted"
+    (global_dir / "config.toml").write_text('[routing]\nlight_profile = "fast"\n', encoding="utf-8")
+    assert "fast" not in Config.from_env(tmp_path).profiles
+
+
+def test_invalid_global_light_route_is_rejected(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    global_dir = home / ".coderill"
+    global_dir.mkdir(parents=True)
+    (global_dir / "config.toml").write_text('[routing]\nlight_profile = ""\n', encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: home)
+    monkeypatch.setenv("CODERILL_API_KEY", "unused")
+    with pytest.raises(ValueError, match="routing.light_profile"):
+        Config.from_env(tmp_path)
+
+
 def test_missing_provider_key_is_explicit(monkeypatch, tmp_path):
     for name in ("CODERILL_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(name, raising=False)

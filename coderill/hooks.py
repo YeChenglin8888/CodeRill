@@ -45,6 +45,23 @@ class Hooks:
                 _fire(hook, tool_name, tool_input, result)
 
 
+class CombinedHooks(Hooks):
+    """Keep user hooks and adopted declarative Harness² rules in one tool loop."""
+
+    def __init__(self, original: Hooks, harness: Hooks) -> None:
+        self.original, self.harness = original, harness
+
+    def __bool__(self) -> bool:
+        return bool(self.original or self.harness)
+
+    def run_pre(self, tool_name: str, tool_input: dict) -> str | None:
+        return self.original.run_pre(tool_name, tool_input) or self.harness.run_pre(tool_name, tool_input)
+
+    def run_post(self, tool_name: str, tool_input: dict, result: str) -> str | None:
+        self.original.run_post(tool_name, tool_input, result)
+        return self.harness.run_post(tool_name, tool_input, result)
+
+
 def load_hooks(path: Path = HOOKS_FILE) -> Hooks:
     path = Path(path)
     if not path.exists():

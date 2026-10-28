@@ -52,7 +52,12 @@ def build_registry(
 
         registry.register(BrowserTaskTool(llm, config))
 
-    if config is not None and config.jev_decisions_enabled:
+    if config is not None and config.computer_enabled and config.vision and config.typesafe_api_key:
+        from .computer import ComputerUseTool
+
+        registry.register(ComputerUseTool())
+
+    if config is not None and (config.jev_decisions_enabled or config.computer_enabled):
         from .decision import JevDecisionTool
 
         registry.register(JevDecisionTool(config.typesafe_api_key, config.typesafe_model))
