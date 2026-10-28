@@ -49,12 +49,15 @@ def test_search_does_not_follow_file_symlink_outside_workspace(tmp_path):
     workspace.mkdir()
     outside = tmp_path / "outside.txt"
     outside.write_text("secret-outside")
+    (workspace / "visible.txt").write_text("secret-visible")
     try:
         (workspace / "link.txt").symlink_to(outside)
     except OSError:
         pytest.skip("symlink creation unavailable")
     registry = build_registry(workspace)
-    assert "secret-outside" not in registry.dispatch("grep", {"pattern": "secret-outside"})
+    results = registry.dispatch("grep", {"pattern": "secret-.*"})
+    assert "secret-visible" in results
+    assert "secret-outside" not in results
     assert "link.txt" not in registry.dispatch("glob", {"pattern": "*.txt"})
 
 

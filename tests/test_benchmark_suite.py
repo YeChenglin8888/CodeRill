@@ -69,6 +69,7 @@ def test_case_evaluates_selected_harness_in_fresh_workspace(tmp_path, monkeypatc
     (source / "answer.txt").write_text("before", encoding="utf-8")
     monkeypatch.setattr(Config, "from_env", classmethod(
         lambda cls, workspace, **_kwargs: cls(api_key="unused", workspace=workspace)))
+    monkeypatch.setattr("coderill.harness_tree.default_roots", lambda _workspace: [])
 
     class FakeState:
         def __init__(self, config):
@@ -94,7 +95,8 @@ def test_case_evaluates_selected_harness_in_fresh_workspace(tmp_path, monkeypatc
     monkeypatch.setattr(benchmark_suite, "build_state", lambda config, *_args, **_kwargs: FakeState(config))
     case = {"id": "copy", "workspace": "source", "prompt": "change file", "verify": [
         [sys.executable, "-c", "from pathlib import Path; assert Path('answer.txt').read_text() == 'after'"]]}
-    harness = edit_harness(base_harness(), {"system_prompt": "Use boundary tests"})
+    harness = edit_harness(base_harness(), {"system_prompt": "Use boundary tests",
+                                            "skills": {"check": "# Check\nRun boundary tests"}})
     assert run_case(case, tmp_path, no_docker=True)["outcome"] == "verification_failed"
     assert run_case(case, tmp_path, harness=harness, no_docker=True)["outcome"] == "passed"
     assert (source / "answer.txt").read_text(encoding="utf-8") == "before"
