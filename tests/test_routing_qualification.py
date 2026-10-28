@@ -17,6 +17,15 @@ def test_fixed_qualification_manifest_has_required_independent_cases():
 
 
 def test_qualification_uses_readonly_runtime_and_boundary_classifier(monkeypatch, tmp_path):
+    observed = []
+    original_run = qualification.AgentRuntime.run_turn
+
+    async def record_run(runtime, *args, **kwargs):
+        result = await original_run(runtime, *args, **kwargs)
+        observed.append((result.status, result.text, result.error, runtime.session.finished_calls))
+        return result
+
+    monkeypatch.setattr(qualification.AgentRuntime, "run_turn", record_run)
     class Provider:
         def __init__(self):
             self.calls = 0
@@ -36,5 +45,5 @@ def test_qualification_uses_readonly_runtime_and_boundary_classifier(monkeypatch
             "files": {"record.json": '{"answer":"TOKEN-00-00"}'}}
     boundary = {"id": "boundary", "previous": [{"role": "user", "content": "Inspect code"}],
                 "latest": "Continue inspecting code", "decision": "same"}
-    assert asyncio.run(qualification.read_only_case(config, read))
+    assert asyncio.run(qualification.read_only_case(config, read)), observed
     assert asyncio.run(qualification.boundary_case(config, boundary))
