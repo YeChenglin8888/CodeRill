@@ -74,6 +74,7 @@ def resolve_path(root: Path, path: str) -> Path:
         candidate = root / candidate
     check_active_path(candidate)
     resolved = candidate.resolve()
+    root = root.resolve()
     if resolved != root and root not in resolved.parents:
         raise ToolError(f"path '{path}' is outside the workspace root")
     check_active_path(resolved)

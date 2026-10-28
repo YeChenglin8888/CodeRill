@@ -47,6 +47,22 @@ def test_path_traversal_is_blocked(tmp_path):
     assert "outside the workspace" in out
 
 
+def test_file_tools_accept_noncanonical_workspace_root(tmp_path):
+    from coderill.tools.base import ToolError
+    from coderill.tools.files import ReadFileTool
+    from coderill.tools.glob_tool import GlobTool
+    from coderill.tools.grep import GrepTool
+
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "record.txt").write_text("needle")
+    root = tmp_path / "nested" / ".."
+    assert "needle" in ReadFileTool(root).execute("record.txt")
+    assert "record.txt" in GrepTool(root).execute("needle")
+    assert "record.txt" in GlobTool(root).execute("*.txt")
+    with pytest.raises(ToolError, match="outside the workspace"):
+        ReadFileTool(root).execute("../outside.txt")
+
+
 def test_bash_runs_and_reports_exit_code(tmp_path):
     registry = build_registry(tmp_path)
     out = registry.dispatch("bash", {"command": "echo hi"})

@@ -51,7 +51,7 @@ class GlobTool(Tool):
             return f"no files match {pattern!r}"
 
         shown = matches[:MAX_RESULTS]
-        lines = [str(p.relative_to(self.root)) for p in shown]
+        lines = [str(p.relative_to(workspace)) for p in shown]
         if len(matches) > len(shown):
             lines.append(f"... and {len(matches) - len(shown)} more")
         return "\n".join(lines)

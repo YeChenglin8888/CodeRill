@@ -46,7 +46,7 @@ class GrepTool(Tool):
         matches: list[str] = []
         for file in files:
             for lineno, line in _search(file, regex):
-                matches.append(f"{file.relative_to(self.root)}:{lineno}: {line}")
+                matches.append(f"{file.relative_to(self.root.resolve())}:{lineno}: {line}")
                 if len(matches) >= MAX_MATCHES:
                     matches.append(f"... stopped after {MAX_MATCHES} matches")
                     return "\n".join(matches)
